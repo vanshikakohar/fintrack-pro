@@ -25,7 +25,7 @@ export default function FinanceAI() {
     setLoading(true);
 
     try {
-      const res = await axios.post("${API}/financeai", {
+      const res = await axios.post(`${API}/financeai`, {
         prompt: query,
       });
 

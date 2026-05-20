@@ -10,7 +10,7 @@ export default function Register() {
   const handleRegister = async (e) => {
     e.preventDefault();
     try {
-      await axios.post("${API}/auth/register", form);
+      await axios.post(`${API}/auth/register`, form);
       setMessage("✅ Registration successful!");
       setTimeout(() => navigate("/login"), 1000);
     } catch (err) {

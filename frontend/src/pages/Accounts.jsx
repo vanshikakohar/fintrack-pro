@@ -43,7 +43,7 @@ export default function AccountsPage() {
     }
     setLoading(true);
     try {
-      await axios.post("${API}/accounts/add", {
+      await axios.post(`${API}/accounts/add`, {
         ...form,
         userId: user._id,
       });

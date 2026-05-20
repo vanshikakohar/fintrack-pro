@@ -70,7 +70,7 @@ export default function Transactions() {
     try {
       const token = localStorage.getItem("token");
       const res = await axios.post(
-        "${API}/finance-ai",
+        `${API}/finance-ai`,
         { prompt: "Give 1 short insight about recent spending (one sentence)." },
         { headers: token ? { Authorization: `Bearer ${token}` } : {} }
       );
@@ -100,7 +100,7 @@ export default function Transactions() {
       };
 
       const res = await axios.post(
-        "${API}/transactions/add",
+        `${API}/transactions/add`,
         payload,
         { headers: token ? { Authorization: `Bearer ${token}` } : {} }
       );

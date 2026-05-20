@@ -65,7 +65,7 @@ export default function Budgets() {
     if (!user?._id) return toast.error("Please login");
 
     try {
-      await axios.post("${API}/budgets/add", {
+      await axios.post(`${API}/budgets/add`, {
         ...form,
         limit: Number(form.limit),
         userId: user._id,
