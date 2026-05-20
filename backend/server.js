@@ -11,7 +11,7 @@ import budgetRoutes from "./routes/budgetRoutes.js";
 import accountsRoutes from "./routes/accounts.js";
 import billsRoutes from "./routes/bills.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
-import financeAIRoutes from "./routes/financeAI.js";
+// import financeAIRoutes from "./routes/financeAI.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
 import splitRoutes from "./routes/splitRoutes.js";
 import documentsRoutes from "./routes/documentsRoutes.js";
@@ -44,8 +44,8 @@ app.use("/api/bills", billsRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/split", splitRoutes);
-app.use("/api/finance-ai", financeAIRoutes);
-app.use("/api/financeai", financeAIRoutes);
+// app.use("/api/finance-ai", financeAIRoutes);
+// app.use("/api/financeai", financeAIRoutes);
 app.use("/api/documents", documentsRoutes);
 // Health check
 app.get("/", (req, res) => {
