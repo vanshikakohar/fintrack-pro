@@ -41,7 +41,7 @@ export default function Transactions() {
 
       const token = localStorage.getItem("token");
       const res = await axios.get(
-        `http://localhost:5000/api/transactions?userId=${user._id}`,
+        `${API}/transactions?userId=${user._id}`,
         { headers: token ? { Authorization: `Bearer ${token}` } : {} }
       );
 
@@ -70,7 +70,7 @@ export default function Transactions() {
     try {
       const token = localStorage.getItem("token");
       const res = await axios.post(
-        "http://localhost:5000/api/finance-ai",
+        "${API}/finance-ai",
         { prompt: "Give 1 short insight about recent spending (one sentence)." },
         { headers: token ? { Authorization: `Bearer ${token}` } : {} }
       );
@@ -100,7 +100,7 @@ export default function Transactions() {
       };
 
       const res = await axios.post(
-        "http://localhost:5000/api/transactions/add",
+        "${API}/transactions/add",
         payload,
         { headers: token ? { Authorization: `Bearer ${token}` } : {} }
       );
@@ -128,7 +128,7 @@ export default function Transactions() {
   const deleteTransaction = async (id) => {
     try {
       const token = localStorage.getItem("token");
-      await axios.delete(`http://localhost:5000/api/transactions/${id}`, {
+      await axios.delete(`${API}/transactions/${id}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
 

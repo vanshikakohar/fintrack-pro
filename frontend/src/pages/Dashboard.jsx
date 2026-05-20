@@ -63,7 +63,7 @@ export default function Dashboard() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const res = await fetch("http://localhost:5000/api/transactions/summary");
+        const res = await fetch("${API}/transactions/summary");
         const data = await res.json();
         setSummary(data.summary || {});
         setCategories(data.categories || []);

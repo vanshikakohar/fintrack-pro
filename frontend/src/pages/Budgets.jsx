@@ -22,7 +22,7 @@ export default function Budgets() {
 
     try {
       const res = await axios.get(
-        `http://localhost:5000/api/budgets?userId=${user._id}`
+        `${API}/budgets?userId=${user._id}`
       );
 
       const safeBudgets = Array.isArray(res.data)
@@ -65,7 +65,7 @@ export default function Budgets() {
     if (!user?._id) return toast.error("Please login");
 
     try {
-      await axios.post("http://localhost:5000/api/budgets/add", {
+      await axios.post("${API}/budgets/add", {
         ...form,
         limit: Number(form.limit),
         userId: user._id,
@@ -84,7 +84,7 @@ export default function Budgets() {
   /* ===================== DELETE ===================== */
   const deleteBudget = async (id) => {
     try {
-      await axios.delete(`http://localhost:5000/api/budgets/${id}`);
+      await axios.delete(`${API}/budgets/${id}`);
       shownExceedAlerts.current.delete(id);
       fetchBudgets();
       toast.success("Budget deleted");

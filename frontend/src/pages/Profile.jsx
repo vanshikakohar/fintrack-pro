@@ -17,7 +17,7 @@ export default function Profile() {
     const fetchProfile = async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await axios.get("http://localhost:5000/api/auth/me", {
+        const res = await axios.get("${API}/auth/me", {
           headers: { Authorization: `Bearer ${token}` },
         });
         setUser(res.data);
@@ -39,7 +39,7 @@ export default function Profile() {
   const handleSave = async () => {
     try {
       const token = localStorage.getItem("token");
-      await axios.put("http://localhost:5000/api/auth/update", form, {
+      await axios.put("${API}/auth/update", form, {
         headers: { Authorization: `Bearer ${token}` },
       });
       toast.success("Profile updated!");

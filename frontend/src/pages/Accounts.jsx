@@ -26,7 +26,7 @@ export default function AccountsPage() {
     if (!user || !user._id) return;
     try {
       const res = await axios.get(
-        `http://localhost:5000/api/accounts?userId=${user._id}`
+        `${API}/accounts?userId=${user._id}`
       );
       setAccounts(res.data);
     } catch (err) {
@@ -43,7 +43,7 @@ export default function AccountsPage() {
     }
     setLoading(true);
     try {
-      await axios.post("http://localhost:5000/api/accounts/add", {
+      await axios.post("${API}/accounts/add", {
         ...form,
         userId: user._id,
       });
@@ -62,7 +62,7 @@ export default function AccountsPage() {
   // ✅ DELETE ACCOUNT (ONLY NEW LOGIC)
   const deleteAccount = async (id) => {
     try {
-      await axios.delete(`http://localhost:5000/api/accounts/${id}`);
+      await axios.delete(`${API}/accounts/${id}`);
       toast.success("Account deleted");
       fetchAccounts();
     } catch (err) {

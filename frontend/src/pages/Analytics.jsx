@@ -47,7 +47,7 @@ export default function Analytics() {
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
-      const res = await axios.get("http://localhost:5000/api/analytics", {
+      const res = await axios.get("${API}/analytics", {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         params: { userId: user?._id },
       });
@@ -71,7 +71,7 @@ export default function Analytics() {
   const fetchTransactions = async () => {
     if (!user || !user._id) return;
     try {
-      const res = await axios.get(`http://localhost:5000/api/transactions`, {
+      const res = await axios.get(`${API}/transactions`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         params: { userId: user._id, limit: 1000 }, // fetch many to compute heatmap & trends
       });
@@ -105,7 +105,7 @@ export default function Analytics() {
         return;
       }
       const res = await axios.post(
-        "http://localhost:5000/api/finance-ai",
+        "${API}/finance-ai",
         { prompt: "Give 2 short insights about recent spending (2 sentences)." },
         { headers: token ? { Authorization: `Bearer ${token}` } : {} }
       );
