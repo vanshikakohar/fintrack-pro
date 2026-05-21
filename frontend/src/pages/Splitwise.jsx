@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "../axios";
+import API from "../utils/api";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import { useNavigate } from "react-router-dom";
@@ -17,7 +18,7 @@ export default function Splitwise() {
   const loadGroups = async () => {
     setLoading(true);
     try {
-      const res = await axios.get("/api/split/groups");
+      const res = await axios.get(`${API}/split/groups`);
       setGroups(res.data || []);
     } catch (err) {
       console.error(err);
@@ -34,7 +35,7 @@ export default function Splitwise() {
         .split(",")
         .map((m) => ({ name: m.trim() }));
 
-      const res = await axios.post("/api/split/groups", {
+      const res = await axios.post(`${API}/split/groups`, {
         name: groupName,
         members: formattedMembers,
       });

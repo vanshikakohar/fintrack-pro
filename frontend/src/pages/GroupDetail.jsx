@@ -4,6 +4,7 @@ import { useParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import axios from "../axios";
+import API from "../utils/api";
 import AddExpenseForm from "../components/AddExpenseForm";
 import { formatRupee } from "../utils/splitUtils";
 
@@ -12,14 +13,17 @@ export default function GroupDetail() {
   const [groupData, setGroupData] = useState(null);
 
   const fetch = async () => {
-    const res = await axios.get(`/api/split/groups/${id}/expenses`);
+    const res = await axios.get(`${API}/split/groups/${id}/expenses`);
     setGroupData(res.data);
   };
 
   useEffect(()=>{ fetch(); }, [id]);
 
   const handleAddExpense = async (payload) => {
-    await axios.post(`/api/split/groups/${id}/expense`, { ...payload, groupId: id });
+    await axios.post(
+  `${API}/split/groups/${id}/expense`,
+  { ...payload, groupId: id }
+);
     await fetch();
   };
 

@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import axios from "../axios";
+import API from "../utils/api";
 import { motion } from "framer-motion";
 
 const fmt = (v) =>
@@ -25,7 +26,9 @@ export default function SplitwiseGroup() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`/api/split/groups/${groupId}/expenses`);
+      const res = await axios.get(
+  `${API}/split/groups/${groupId}/expenses`
+);
       setGroup(res.data.group);
       setExpenses(res.data.expenses || []);
       setBalances(res.data.balances || {});
@@ -40,7 +43,7 @@ export default function SplitwiseGroup() {
     if (!desc || !amount || !paidBy) return alert("Fill all fields");
 
     try {
-      await axios.post(`/api/split/groups/${groupId}/expense`, {
+      await axios.post(`${API}/split/groups/${groupId}/expense`, {
         groupId,
         description: desc,
         amount: Number(amount),
