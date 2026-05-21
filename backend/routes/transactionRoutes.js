@@ -16,26 +16,44 @@ router.delete("/:id", deleteTransaction);
 // ✅ ADD THIS:
 router.get("/summary", async (req, res) => {
   try {
-    const transactions = await Transaction.find();
+    const { userId } = req.query;
 
-    const income = transactions
-      .filter(t => t.type === "income")
-      .reduce((a, b) => a + Number(b.amount || 0), 0);
+    if (!userId) {
+      return res.status(400).json({
+        message: "userId is required",
+      });
+    }
 
-    const expense = transactions
-      .filter(t => t.type === "expense")
-      .reduce((a, b) => a + Number(b.amount || 0), 0);
+    // ✅ ONLY CURRENT USER TRANSACTIONS
+    const transactions = await Transaction.find({ userId });
 
-    const categories = transactions.reduce((acc, t) => {
+    let income = 0;
+    let expense = 0;
+
+    const categories = {};
+
+    transactions.forEach((t) => {
+      const amount = Number(t.amount || 0);
+
+      // INCOME / EXPENSE
+      if (t.type === "income") {
+        income += amount;
+      } else if (t.type === "expense") {
+        expense += amount;
+      }
+
+      // CATEGORY TOTALS
       const cat = t.category || "Other";
-      acc[cat] = (acc[cat] || 0) + Number(t.amount || 0);
-      return acc;
-    }, {});
 
-    const categoryList = Object.entries(categories).map(([category, amount]) => ({
-      category,
-      amount
-    }));
+      categories[cat] = (categories[cat] || 0) + amount;
+    });
+
+    const categoryList = Object.entries(categories).map(
+      ([category, amount]) => ({
+        category,
+        amount,
+      })
+    );
 
     const recentTransactions = transactions
       .sort((a, b) => new Date(b.date) - new Date(a.date))
@@ -48,14 +66,66 @@ router.get("/summary", async (req, res) => {
         balance: income - expense,
       },
       categories: categoryList,
-      recentTransactions
+      recentTransactions,
     });
   } catch (err) {
-    res.status(500).json({ message: "Error loading summary" });
+    console.error(err);
+
+    res.status(500).json({
+      message: "Error loading summary",
+    });
   }
 });
+// router.get("/summary", async (req, res) => {
+//   try {
+//     const transactions = await Transaction.find();
+
+//     const income = transactions
+//       .filter(t => t.type === "income")
+//       .reduce((a, b) => a + Number(b.amount || 0), 0);
+
+//     const expense = transactions
+//       .filter(t => t.type === "expense")
+//       .reduce((a, b) => a + Number(b.amount || 0), 0);
+
+//     const categories = transactions.reduce((acc, t) => {
+//       const cat = t.category || "Other";
+//       acc[cat] = (acc[cat] || 0) + Number(t.amount || 0);
+//       return acc;
+//     }, {});
+
+//     const categoryList = Object.entries(categories).map(([category, amount]) => ({
+//       category,
+//       amount
+//     }));
+
+//     const recentTransactions = transactions
+//       .sort((a, b) => new Date(b.date) - new Date(a.date))
+//       .slice(0, 5);
+
+//     res.json({
+//       summary: {
+//         income,
+//         expense,
+//         balance: income - expense,
+//       },
+//       categories: categoryList,
+//       recentTransactions
+//     });
+//   } catch (err) {
+//     res.status(500).json({ message: "Error loading summary" });
+//   }
+// });
 
 export default router;
+
+
+
+
+
+
+
+
 // import express from "express";
 // import {
 //   addTransaction,

@@ -64,7 +64,11 @@ export default function Dashboard() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`${API}/transactions/summary`);
+        const user = JSON.parse(localStorage.getItem("user"));
+
+const res = await fetch(
+  `${API}/transactions/summary?userId=${user._id}`
+);
         const data = await res.json();
         setSummary(data.summary || {});
         setCategories(data.categories || []);
