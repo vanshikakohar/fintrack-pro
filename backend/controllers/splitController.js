@@ -8,28 +8,53 @@ export const createGroup = async (req, res) => {
   try {
     const { name, members = [], userId } = req.body;
 
-const g = new Group({
-  name,
-  members,
-  userId,
-});
+    if (!userId) {
+      return res.status(400).json({
+        message: "userId required",
+      });
+    }
+
+    const g = new Group({
+      name,
+      members,
+      userId,
+    });
+
     await g.save();
+
     res.status(201).json(g);
+
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Error creating group" });
+    console.error("createGroup:", err);
+
+    res.status(500).json({
+      message: "Error creating group",
+      error: err.message,
+    });
   }
 };
 
 export const getGroups = async (req, res) => {
   try {
-const { userId } = req.query;
 
-const groups = await Group.find({ userId });
+    const { userId } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({
+        message: "userId required",
+      });
+    }
+
+    const groups = await Group.find({ userId });
+
     res.json(groups);
+
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Error fetching groups" });
+
+    res.status(500).json({
+      message: "Error fetching groups",
+    });
   }
 };
 
