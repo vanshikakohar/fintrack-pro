@@ -6,8 +6,13 @@ import Settlement from "../models/Settlement.js";
 /** Create a group */
 export const createGroup = async (req, res) => {
   try {
-    const { name, members = [] } = req.body;
-    const g = new Group({ name, members });
+    const { name, members = [], userId } = req.body;
+
+const g = new Group({
+  name,
+  members,
+  userId,
+});
     await g.save();
     res.status(201).json(g);
   } catch (err) {
@@ -18,7 +23,9 @@ export const createGroup = async (req, res) => {
 
 export const getGroups = async (req, res) => {
   try {
-    const groups = await Group.find();
+const { userId } = req.query;
+
+const groups = await Group.find({ userId });
     res.json(groups);
   } catch (err) {
     console.error(err);

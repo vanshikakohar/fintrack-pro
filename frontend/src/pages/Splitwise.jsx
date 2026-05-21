@@ -8,6 +8,7 @@ import { motion } from "framer-motion";
 import { Plus, Users } from "lucide-react";
 
 export default function Splitwise() {
+  const user = JSON.parse(localStorage.getItem("user"));
   const navigate = useNavigate();
 
   const [groups, setGroups] = useState([]);
@@ -18,7 +19,9 @@ export default function Splitwise() {
   const loadGroups = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API}/split/groups`);
+      const res = await axios.get(
+  `${API}/split/groups?userId=${user._id}`
+);
       setGroups(res.data || []);
     } catch (err) {
       console.error(err);
@@ -35,10 +38,11 @@ export default function Splitwise() {
         .split(",")
         .map((m) => ({ name: m.trim() }));
 
-      const res = await axios.post(`${API}/split/groups`, {
-        name: groupName,
-        members: formattedMembers,
-      });
+     const res = await axios.post(`${API}/split/groups`, {
+  name: groupName,
+  members: formattedMembers,
+  userId: user._id,
+});
 
       setGroupName("");
       setMembers("");
