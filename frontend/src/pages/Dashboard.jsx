@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import { motion } from "framer-motion";
+import API from "../utils/api";
 import {
   PieChart,
   Pie,

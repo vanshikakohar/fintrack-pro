@@ -1,7 +1,12 @@
-import React, { useState, useEffect } from "react";
-import Sidebar from "../components/Sidebar";
+import React, { useEffect, useState } from "react";
 import axios from "axios";
+
+import API from "../utils/api";
+
+import Sidebar from "../components/Sidebar";
+
 import { toast } from "sonner";
+
 import { Wallet, TrendingUp, Target, Edit2 } from "lucide-react";
 
 export default function Profile() {
