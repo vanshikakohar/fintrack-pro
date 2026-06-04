@@ -1,13 +1,36 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import axios from "axios";
 import API from "../utils/api";
+
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
+
 import { Toaster, toast } from "react-hot-toast";
+
+import {
+  Plus,
+  MoreHorizontal,
+  ShoppingBag,
+  Car,
+  Utensils,
+  HeartPulse,
+  GraduationCap,
+  Wallet,
+  Tv,
+  Zap,
+} from "lucide-react";
+
+import {
+  CircularProgressbar,
+  buildStyles,
+} from "react-circular-progressbar";
+
+import "react-circular-progressbar/dist/styles.css";
 
 export default function Budgets() {
   const [budgets, setBudgets] = useState([]);
   const [showForm, setShowForm] = useState(false);
+
   const [form, setForm] = useState({
     month: "",
     category: "",
@@ -16,9 +39,11 @@ export default function Budgets() {
 
   const shownExceedAlerts = useRef(new Set());
 
-  /* ===================== FETCH ===================== */
+  /* ================= FETCH ================= */
+
   const fetchBudgets = async () => {
     const user = JSON.parse(localStorage.getItem("user"));
+
     if (!user?._id) return;
 
     try {
@@ -36,21 +61,18 @@ export default function Budgets() {
 
       setBudgets(safeBudgets);
 
-      // 🚨 exceed alert (once per budget)
       safeBudgets.forEach((b) => {
-        if (b.spent > b.limit && !shownExceedAlerts.current.has(b._id)) {
-          toast.error(`⚠️ Budget exceeded in ${b.category}`, {
-            style: {
-              background: "#3b082f",
-              color: "#ffdede",
-              fontWeight: 700,
-            },
-          });
+        if (
+          b.spent > b.limit &&
+          !shownExceedAlerts.current.has(b._id)
+        ) {
+          toast.error(`Budget exceeded in ${b.category}`);
+
           shownExceedAlerts.current.add(b._id);
         }
       });
     } catch (err) {
-      console.error("Error fetching budgets", err);
+      console.error(err);
       toast.error("Failed to load budgets");
     }
   };
@@ -59,11 +81,17 @@ export default function Budgets() {
     fetchBudgets();
   }, []);
 
-  /* ===================== ADD ===================== */
+  /* ================= ADD ================= */
+
   const addBudget = async (e) => {
     e.preventDefault();
+
     const user = JSON.parse(localStorage.getItem("user"));
-    if (!user?._id) return toast.error("Please login");
+
+    if (!user?._id) {
+      toast.error("Please login");
+      return;
+    }
 
     try {
       await axios.post(`${API}/budgets/add`, {
@@ -72,206 +100,592 @@ export default function Budgets() {
         userId: user._id,
       });
 
-      setForm({ month: "", category: "", limit: "" });
-      setShowForm(false);
-      fetchBudgets();
       toast.success("Budget added");
+
+      setForm({
+        month: "",
+        category: "",
+        limit: "",
+      });
+
+      setShowForm(false);
+
+      fetchBudgets();
     } catch (err) {
       console.error(err);
       toast.error("Failed to add budget");
     }
   };
 
-  /* ===================== DELETE ===================== */
+  /* ================= DELETE ================= */
+
   const deleteBudget = async (id) => {
     try {
       await axios.delete(`${API}/budgets/${id}`);
-      shownExceedAlerts.current.delete(id);
-      fetchBudgets();
+
       toast.success("Budget deleted");
-    } catch {
-      toast.error("Failed to delete budget");
+
+      fetchBudgets();
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to delete");
     }
   };
 
-  /* ===================== SUMMARY ===================== */
+  /* ================= SUMMARY ================= */
+
   const summary = useMemo(() => {
-    const totalLimit = budgets.reduce((a, b) => a + b.limit, 0);
-    const totalSpent = budgets.reduce((a, b) => a + b.spent, 0);
+    const totalLimit = budgets.reduce(
+      (acc, item) => acc + item.limit,
+      0
+    );
+
+    const totalSpent = budgets.reduce(
+      (acc, item) => acc + item.spent,
+      0
+    );
+
+    const percentage =
+      totalLimit > 0
+        ? Math.round((totalSpent / totalLimit) * 100)
+        : 0;
+
     return {
       totalBudgets: budgets.length,
       totalLimit,
       totalSpent,
       remaining: totalLimit - totalSpent,
+      percentage,
     };
   }, [budgets]);
 
-  /* ===================== STYLES ===================== */
-  const accentForCategory = (cat) => {
-    if (!cat) return "linear-gradient(90deg,#5eead4,#60a5fa)";
-    const c = cat.toLowerCase();
-    if (c.includes("food")) return "linear-gradient(90deg,#ff8a80,#f48fb1)";
-    if (c.includes("rent") || c.includes("bill"))
-      return "linear-gradient(90deg,#f59e0b,#f97316)";
-    return "linear-gradient(90deg,#7c3aed,#60a5fa)";
+  /* ================= ICONS ================= */
+
+  const categoryIcon = (category) => {
+    const c = category?.toLowerCase();
+
+    if (c?.includes("food"))
+      return <Utensils size={18} />;
+
+    if (c?.includes("shopping"))
+      return <ShoppingBag size={18} />;
+
+    if (c?.includes("car") || c?.includes("transport"))
+      return <Car size={18} />;
+
+    if (c?.includes("health"))
+      return <HeartPulse size={18} />;
+
+    if (c?.includes("education"))
+      return <GraduationCap size={18} />;
+
+    if (c?.includes("entertainment"))
+      return <Tv size={18} />;
+
+    if (c?.includes("bill"))
+      return <Zap size={18} />;
+
+    return <Wallet size={18} />;
   };
 
   return (
-    <div className="flex min-h-screen bg-[#050611]">
-      <Sidebar />
+    <div className="min-h-screen bg-[#050816] text-white flex">
 
-      <div className="flex-1 flex flex-col">
+      {/* SIDEBAR */}
+      <div className="hidden lg:block">
+        <Sidebar />
+      </div>
+
+      {/* MAIN */}
+      <div className="flex-1 flex flex-col min-w-0">
+
         <Topbar />
+
         <Toaster position="top-right" />
 
-        <main className="p-10 space-y-10">
-          {/* HEADER */}
-          <div>
-            <h1 className="text-4xl font-extrabold text-transparent bg-clip-text"
-              style={{ backgroundImage: "linear-gradient(90deg,#b892ff,#7c3aed,#7dd3fc)" }}>
-              Budgets
-            </h1>
-            <p className="text-gray-300 mt-2">
-              Track monthly limits & control your spending ✨
-            </p>
-          </div>
+        <main className="p-5 lg:p-8">
 
-          {/* ADD */}
-          <div className="flex justify-end">
+          {/* HEADER */}
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-8">
+
+            <div>
+              <h1 className="text-5xl font-black bg-gradient-to-r from-violet-300 via-violet-500 to-blue-400 bg-clip-text text-transparent">
+                Budgets
+              </h1>
+
+              <p className="text-gray-400 mt-2 text-lg">
+                Track your limits, manage spending and achieve your goals.
+              </p>
+            </div>
+
             <button
               onClick={() => setShowForm(true)}
-              className="px-5 py-2 rounded-full text-white"
-              style={{ background: "linear-gradient(90deg,#7c3aed,#60a5fa)" }}
+              className="
+                px-7 py-4 rounded-2xl
+                bg-gradient-to-r from-violet-600 to-blue-500
+                font-semibold
+                shadow-[0_0_35px_rgba(139,92,246,0.45)]
+                hover:scale-105 transition-all
+              "
             >
-              + Add Budget
+              <div className="flex items-center gap-2">
+                <Plus size={18} />
+                Add Budget
+              </div>
             </button>
+
           </div>
 
           {/* SUMMARY */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              { label: "Total Budgets", value: summary.totalBudgets },
-              { label: "Total Limit", value: `₹${summary.totalLimit}` },
-              { label: "Total Spent", value: `₹${summary.totalSpent}` },
-              { label: "Remaining", value: `₹${summary.remaining}` },
-            ].map((c, i) => (
-              <div key={i} className="bg-white p-6 rounded-2xl shadow">
-                <p className="text-sm text-gray-500">{c.label}</p>
-                <h2 className="text-2xl font-semibold">{c.value}</h2>
-              </div>
-            ))}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-10">
+
+            <div className="bg-white/[0.03] border border-white/10 rounded-3xl p-6">
+              <p className="text-gray-400 text-sm mb-3">
+                Total Budget
+              </p>
+
+              <h2 className="text-4xl font-bold">
+                ₹{summary.totalLimit}
+              </h2>
+            </div>
+
+            <div className="bg-white/[0.03] border border-white/10 rounded-3xl p-6">
+              <p className="text-gray-400 text-sm mb-3">
+                Total Spent
+              </p>
+
+              <h2 className="text-4xl font-bold text-pink-400">
+                ₹{summary.totalSpent}
+              </h2>
+            </div>
+
+            <div className="bg-white/[0.03] border border-white/10 rounded-3xl p-6">
+              <p className="text-gray-400 text-sm mb-3">
+                Remaining
+              </p>
+
+              <h2 className="text-4xl font-bold text-emerald-400">
+                ₹{summary.remaining}
+              </h2>
+            </div>
+
           </div>
 
-          {/* LIST */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-7">
-            {budgets.map((b) => {
-              const percent =
-                b.limit > 0 ? Math.min((b.spent / b.limit) * 100, 100) : 0;
+          {/* MAIN GRID */}
+          <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-8">
 
-              return (
-                <div key={b._id} className="bg-white p-6 rounded-2xl shadow relative">
-                  <div
-                    className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl"
-                    style={{ background: accentForCategory(b.category) }}
-                  />
-                  <div className="flex justify-between">
-                    <div>
-                      <p className="font-semibold">{b.category}</p>
-                      <p className="text-sm text-gray-500">{b.month}</p>
+            {/* LEFT */}
+            <div>
+
+              {/* TITLE */}
+              <div className="flex items-center justify-between mb-6">
+
+                <div>
+                  <h2 className="text-2xl font-bold">
+                    Your Budget Goals
+                  </h2>
+
+                  <p className="text-gray-400 mt-1">
+                    Track category wise spending
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button className="px-4 py-2 rounded-xl bg-violet-600 text-sm">
+                    Grid
+                  </button>
+
+                  <button className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-sm">
+                    List
+                  </button>
+                </div>
+
+              </div>
+
+              {/* CARDS */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                {budgets.map((budget) => {
+
+                  const percent =
+                    budget.limit > 0
+                      ? Math.round(
+                          (budget.spent / budget.limit) * 100
+                        )
+                      : 0;
+
+                  const exceeded = percent >= 100;
+
+                  const styles = {
+                    food: {
+                      icon: "bg-emerald-500",
+                      bar: "bg-emerald-400",
+                      text: "text-emerald-400",
+                    },
+
+                    shopping: {
+                      icon: "bg-violet-500",
+                      bar: "bg-violet-400",
+                      text: "text-violet-400",
+                    },
+
+                    entertainment: {
+                      icon: "bg-yellow-500",
+                      bar: "bg-yellow-400",
+                      text: "text-yellow-400",
+                    },
+
+                    transport: {
+                      icon: "bg-blue-500",
+                      bar: "bg-blue-400",
+                      text: "text-blue-400",
+                    },
+
+                    health: {
+                      icon: "bg-pink-500",
+                      bar: "bg-pink-400",
+                      text: "text-pink-400",
+                    },
+
+                    education: {
+                      icon: "bg-orange-500",
+                      bar: "bg-orange-400",
+                      text: "text-orange-400",
+                    },
+
+                    bills: {
+                      icon: "bg-cyan-500",
+                      bar: "bg-cyan-400",
+                      text: "text-cyan-400",
+                    },
+                  };
+
+                  let style = styles.shopping;
+
+                  const c = budget.category.toLowerCase();
+
+                  if (c.includes("food")) style = styles.food;
+                  else if (c.includes("shopping")) style = styles.shopping;
+                  else if (c.includes("entertainment")) style = styles.entertainment;
+                  else if (c.includes("transport")) style = styles.transport;
+                  else if (c.includes("health")) style = styles.health;
+                  else if (c.includes("education")) style = styles.education;
+                  else if (c.includes("bill")) style = styles.bills;
+
+                  return (
+                    <div
+                      key={budget._id}
+                      className="
+                        bg-white/[0.03]
+                        border border-white/10
+                        rounded-3xl
+                        p-6
+                        hover:border-violet-500/30
+                        transition-all
+                      "
+                    >
+
+                      {/* TOP */}
+                      <div className="flex justify-between items-start">
+
+                        <div className="flex items-center gap-4">
+
+                          <div
+                            className={`
+                              w-14 h-14 rounded-2xl
+                              flex items-center justify-center
+                              ${style.icon}
+                            `}
+                          >
+                            {categoryIcon(budget.category)}
+                          </div>
+
+                          <div>
+                            <h3 className="font-bold text-lg capitalize">
+                              {budget.category}
+                            </h3>
+
+                            <p className="text-gray-400 text-sm">
+                              {budget.month}
+                            </p>
+                          </div>
+
+                        </div>
+
+                        <button
+                          onClick={() =>
+                            deleteBudget(budget._id)
+                          }
+                          className="text-gray-400 hover:text-white"
+                        >
+                          <MoreHorizontal size={20} />
+                        </button>
+
+                      </div>
+
+                      {/* VALUES */}
+                      <div className="mt-8">
+
+                        <div className="flex items-end gap-2">
+                          <h2 className="text-3xl font-bold">
+                            ₹{budget.spent}
+                          </h2>
+
+                          <span className="text-gray-400 mb-1">
+                            / ₹{budget.limit}
+                          </span>
+                        </div>
+
+                        {/* BAR */}
+                        <div className="mt-5 h-3 bg-white/10 rounded-full overflow-hidden">
+
+                          <div
+                            className={`h-full rounded-full ${style.bar}`}
+                            style={{
+                              width: `${Math.min(percent, 100)}%`,
+                            }}
+                          />
+
+                        </div>
+
+                        {/* BOTTOM */}
+                        <div className="flex items-center justify-between mt-4">
+
+                          <span className={`font-semibold ${style.text}`}>
+                            {percent}%
+                          </span>
+
+                          {exceeded ? (
+                            <span className="text-red-400 text-sm font-medium">
+                              Over Limit
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 text-sm">
+                              ₹{budget.limit - budget.spent} left
+                            </span>
+                          )}
+
+                        </div>
+
+                      </div>
+
                     </div>
-                    <button onClick={() => deleteBudget(b._id)}>✕</button>
-                  </div>
+                  );
+                })}
 
-                  <p className="mt-4 text-sm">
-                    ₹{b.spent} / ₹{b.limit}
+              </div>
+
+            </div>
+
+            {/* RIGHT PANEL */}
+            <div>
+
+              <div
+                className="
+                  rounded-3xl
+                  border border-white/10
+                  bg-[#111827]
+                  p-6
+                  sticky top-28
+                "
+              >
+
+                <div className="flex items-center justify-between mb-8">
+
+                  <h2 className="text-2xl font-bold">
+                    Budget Health
+                  </h2>
+
+                  <button className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-sm">
+                    This Month
+                  </button>
+
+                </div>
+
+                <div className="w-56 h-56 mx-auto">
+
+                  <CircularProgressbar
+                    value={summary.percentage}
+                    text={`${summary.percentage}%`}
+                    styles={buildStyles({
+                      textColor: "#fff",
+                      trailColor: "#1e293b",
+                      pathColor: "#8b5cf6",
+                    })}
+                  />
+
+                </div>
+
+                <div className="text-center mt-6">
+
+                  <h3 className="text-xl font-bold">
+                    You're doing great!
+                  </h3>
+
+                  <p className="text-gray-400 mt-2">
+                    You have ₹{summary.remaining} left to spend.
                   </p>
 
-                  <div className="h-3 bg-gray-200 rounded-full mt-3">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{
-                        width: `${percent}%`,
-                        background:
-                          b.spent > b.limit
-                            ? "linear-gradient(90deg,#fb7185,#f97316)"
-                            : accentForCategory(b.category),
-                      }}
-                    />
-                  </div>
                 </div>
-              );
-            })}
+
+              </div>
+
+            </div>
+
           </div>
 
           {/* MODAL */}
           {showForm && (
-            <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
-              <form onSubmit={addBudget} className="bg-white p-6 rounded-xl w-80">
-                <h2 className="font-semibold mb-4">Add Budget</h2>
+            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
 
-                <input
-                  required
-                  placeholder="Month"
-                  className="w-full p-2 mb-3 border rounded"
-                  value={form.month}
-                  onChange={(e) => setForm({ ...form, month: e.target.value })}
-                />
+              <form
+                onSubmit={addBudget}
+                className="
+                  w-full max-w-md
+                  rounded-3xl
+                  border border-white/10
+                  bg-[#111827]
+                  p-8
+                "
+              >
 
-                <input
-                  required
-                  placeholder="Category"
-                  className="w-full p-2 mb-3 border rounded"
-                  value={form.category}
-                  onChange={(e) => setForm({ ...form, category: e.target.value })}
-                />
+                <h2 className="text-3xl font-bold mb-7">
+                  Add Budget
+                </h2>
 
-                <input
-                  required
-                  type="number"
-                  placeholder="Limit"
-                  className="w-full p-2 mb-4 border rounded"
-                  value={form.limit}
-                  onChange={(e) => setForm({ ...form, limit: e.target.value })}
-                />
+                <div className="space-y-4">
 
-                <div className="flex gap-2">
-                  <button className="flex-1 bg-purple-600 text-white py-2 rounded">
-                    Add
+                  <input
+                    required
+                    placeholder="Month (Example: May 2026)"
+                    value={form.month}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        month: e.target.value,
+                      })
+                    }
+                    className="
+                      w-full p-4 rounded-2xl
+                      bg-white/[0.05]
+                      border border-white/10
+                      outline-none
+                    "
+                  />
+
+                  <input
+                    required
+                    placeholder="Category"
+                    value={form.category}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        category: e.target.value,
+                      })
+                    }
+                    className="
+                      w-full p-4 rounded-2xl
+                      bg-white/[0.05]
+                      border border-white/10
+                      outline-none
+                    "
+                  />
+
+                  <input
+                    required
+                    type="number"
+                    placeholder="Budget Limit"
+                    value={form.limit}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        limit: e.target.value,
+                      })
+                    }
+                    className="
+                      w-full p-4 rounded-2xl
+                      bg-white/[0.05]
+                      border border-white/10
+                      outline-none
+                    "
+                  />
+
+                </div>
+
+                <div className="flex gap-4 mt-8">
+
+                  <button
+                    type="submit"
+                    className="
+                      flex-1 py-4 rounded-2xl
+                      bg-gradient-to-r
+                      from-violet-600 to-blue-500
+                      font-semibold
+                    "
+                  >
+                    Add Budget
                   </button>
+
                   <button
                     type="button"
                     onClick={() => setShowForm(false)}
-                    className="flex-1 bg-gray-300 py-2 rounded"
+                    className="
+                      flex-1 py-4 rounded-2xl
+                      bg-white/[0.05]
+                      border border-white/10
+                    "
                   >
                     Cancel
                   </button>
+
                 </div>
+
               </form>
+
             </div>
           )}
+
         </main>
       </div>
     </div>
   );
 }
 
-
-
-
-
-
-
-
-
-// import { useState, useEffect, useRef } from "react";
+// import { useState, useEffect, useRef, useMemo } from "react";
 // import axios from "axios";
+// import API from "../utils/api";
+
 // import Sidebar from "../components/Sidebar";
 // import Topbar from "../components/Topbar";
+
 // import { Toaster, toast } from "react-hot-toast";
+// import { motion } from "framer-motion";
+
+// import {
+//   Plus,
+//   MoreHorizontal,
+//   ShoppingBag,
+//   Car,
+//   Utensils,
+//   HeartPulse,
+//   GraduationCap,
+//   Wallet,
+//   Tv,
+//   Zap,
+//   AlertTriangle,
+// } from "lucide-react";
+
+// import {
+//   CircularProgressbar,
+//   buildStyles,
+// } from "react-circular-progressbar";
+
+// import "react-circular-progressbar/dist/styles.css";
 
 // export default function Budgets() {
 //   const [budgets, setBudgets] = useState([]);
 //   const [showForm, setShowForm] = useState(false);
+
 //   const [form, setForm] = useState({
 //     month: "",
 //     category: "",
@@ -280,28 +694,41 @@ export default function Budgets() {
 
 //   const shownExceedAlerts = useRef(new Set());
 
+//   /* ================= FETCH ================= */
+
 //   const fetchBudgets = async () => {
 //     const user = JSON.parse(localStorage.getItem("user"));
-//     if (!user || !user._id) return;
+
+//     if (!user?._id) return;
 
 //     try {
 //       const res = await axios.get(
-//         `http://localhost:5000/api/budgets?userId=${user._id}`
+//         `${API}/budgets?userId=${user._id}`
 //       );
 
-//       setBudgets(res.data);
+//       const safeBudgets = Array.isArray(res.data)
+//         ? res.data.map((b) => ({
+//             ...b,
+//             spent: Number(b.spent || 0),
+//             limit: Number(b.limit || 0),
+//           }))
+//         : [];
 
-//       const exceeded = res.data.filter((b) => b.spent > b.limit);
-//       exceeded.forEach((b) => {
-//         if (!shownExceedAlerts.current.has(b._id)) {
-//           toast.error(`⚠️ Budget exceeded in ${b.category}`, {
-//             style: { background: "#3b082f", color: "#ffdede", fontWeight: 700 },
-//           });
+//       setBudgets(safeBudgets);
+
+//       safeBudgets.forEach((b) => {
+//         if (
+//           b.spent > b.limit &&
+//           !shownExceedAlerts.current.has(b._id)
+//         ) {
+//           toast.error(`Budget exceeded in ${b.category}`);
+
 //           shownExceedAlerts.current.add(b._id);
 //         }
 //       });
 //     } catch (err) {
-//       console.error("Error fetching budgets", err);
+//       console.error(err);
+//       toast.error("Failed to load budgets");
 //     }
 //   };
 
@@ -309,810 +736,521 @@ export default function Budgets() {
 //     fetchBudgets();
 //   }, []);
 
+//   /* ================= ADD ================= */
+
 //   const addBudget = async (e) => {
 //     e.preventDefault();
+
 //     const user = JSON.parse(localStorage.getItem("user"));
 
-//     if (!user || !user._id) {
-//       toast.error("Please log in before adding budgets.");
+//     if (!user?._id) {
+//       toast.error("Please login");
 //       return;
 //     }
 
 //     try {
-//       await axios.post("http://localhost:5000/api/budgets/add", {
+//       await axios.post(`${API}/budgets/add`, {
 //         ...form,
+//         limit: Number(form.limit),
 //         userId: user._id,
 //       });
 
-//       setForm({ month: "", category: "", limit: "" });
-//       setShowForm(false);
-//       fetchBudgets();
+//       toast.success("Budget added");
 
-//       toast.success("Budget added!");
+//       setForm({
+//         month: "",
+//         category: "",
+//         limit: "",
+//       });
+
+//       setShowForm(false);
+
+//       fetchBudgets();
 //     } catch (err) {
-//       console.error("Error adding budget:", err);
+//       console.error(err);
 //       toast.error("Failed to add budget");
 //     }
 //   };
 
+//   /* ================= DELETE ================= */
+
 //   const deleteBudget = async (id) => {
 //     try {
-//       await axios.delete(`http://localhost:5000/api/budgets/${id}`);
-//       shownExceedAlerts.current.delete(id);
+//       await axios.delete(`${API}/budgets/${id}`);
+
+//       toast.success("Budget deleted");
+
 //       fetchBudgets();
-//       toast("Budget deleted");
 //     } catch (err) {
-//       console.error("Error deleting budget:", err);
-//       toast.error("Failed to delete budget");
+//       console.error(err);
+//       toast.error("Failed to delete");
 //     }
 //   };
 
-//   const accentForCategory = (cat) => {
-//     if (!cat) return "linear-gradient(90deg,#5eead4,#60a5fa)";
-//     const c = cat.toLowerCase();
-//     if (c.includes("food")) return "linear-gradient(90deg,#ff8a80,#f48fb1)";
-//     if (c.includes("online") || c.includes("payment") || c.includes("card"))
-//       return "linear-gradient(90deg,#7c3aed,#60a5fa)";
-//     if (c.includes("rent") || c.includes("bills"))
-//       return "linear-gradient(90deg,#f59e0b,#f97316)";
-//     return "linear-gradient(90deg,#7c3aed,#60a5fa)";
+//   /* ================= SUMMARY ================= */
+
+//   const summary = useMemo(() => {
+//     const totalLimit = budgets.reduce(
+//       (acc, item) => acc + item.limit,
+//       0
+//     );
+
+//     const totalSpent = budgets.reduce(
+//       (acc, item) => acc + item.spent,
+//       0
+//     );
+
+//     return {
+//       totalBudgets: budgets.length,
+//       totalLimit,
+//       totalSpent,
+//       remaining: totalLimit - totalSpent,
+//     };
+//   }, [budgets]);
+
+//   /* ================= ICONS ================= */
+
+//   const categoryIcon = (category) => {
+//     const c = category?.toLowerCase();
+
+//     if (c?.includes("food"))
+//       return <Utensils size={20} />;
+
+//     if (c?.includes("shopping"))
+//       return <ShoppingBag size={20} />;
+
+//     if (c?.includes("car"))
+//       return <Car size={20} />;
+
+//     if (c?.includes("health"))
+//       return <HeartPulse size={20} />;
+
+//     if (c?.includes("education"))
+//       return <GraduationCap size={20} />;
+
+//     if (c?.includes("entertainment"))
+//       return <Tv size={20} />;
+
+//     if (c?.includes("bill"))
+//       return <Zap size={20} />;
+
+//     return <Wallet size={20} />;
+//   };
+
+//   /* ================= COLORS ================= */
+
+//   const categoryColor = (category) => {
+//     const c = category?.toLowerCase();
+
+//     if (c?.includes("food"))
+//       return "#f97316";
+
+//     if (c?.includes("shopping"))
+//       return "#8b5cf6";
+
+//     if (c?.includes("car"))
+//       return "#06b6d4";
+
+//     if (c?.includes("health"))
+//       return "#ef4444";
+
+//     if (c?.includes("education"))
+//       return "#10b981";
+
+//     return "#7c3aed";
 //   };
 
 //   return (
-//     <div className="flex min-h-screen w-full overflow-hidden bg-[#050611]">
+//     <div className="min-h-screen bg-[#060816] text-white overflow-hidden">
 
-//       <Sidebar />
+//       <div className="flex">
 
-//       <div
-//         className="flex-1 flex flex-col relative min-h-screen w-full overflow-y-auto"
-//         style={{
-//           background:
-//             "linear-gradient(180deg, #050611 0%, #0b0713 55%, #09041a 100%)",
-//         }}
-//       >
-//         <Topbar />
-//         <Toaster position="top-right" />
+//         {/* SIDEBAR */}
+//         <div className="hidden lg:block">
+//           <Sidebar />
+//         </div>
 
-//         <main className="relative z-10 p-10 pb-20 min-h-screen w-full">
+//         {/* MAIN */}
+//         <div className="flex-1 min-w-0 flex flex-col">
 
-//           {/* HEADER like Dashboard */}
-//           <div className="mb-10">
-//             <h1
-//               className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text"
-//               style={{
-//                 backgroundImage:
-//                   "linear-gradient(90deg,#b892ff,#7c3aed,#7dd3fc)",
-//               }}
-//             >
-//               Budgets
-//             </h1>
-//             <p className="text-gray-300 mt-3 max-w-xl">
-//               Track monthly limits & control your spending ✨
-//             </p>
-//           </div>
+//           <Topbar />
 
-//           {/* Add Button */}
-//           <div className="flex justify-end mb-10">
-//             <button
-//               onClick={() => setShowForm(true)}
-//               className="px-5 py-2.5 rounded-full shadow-lg transform hover:scale-[1.03] transition text-white"
-//               style={{
-//                 background: "linear-gradient(90deg,#7c3aed,#60a5fa)",
-//                 boxShadow: "0 8px 30px rgba(124,58,237,0.18)",
-//               }}
-//             >
-//               + Add Budget
-//             </button>
-//           </div>
+//           <Toaster position="top-right" />
 
-//           {/* WHITE SUMMARY CARDS LIKE DASHBOARD */}
-//           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-//             {[
-//               { label: "Total Budgets", value: budgets.length },
-//               {
-//                 label: "Total Limit",
-//                 value: `₹${budgets.reduce((a, b) => a + Number(b.limit), 0)}`,
-//               },
-//               {
-//                 label: "Total Spent",
-//                 value: `₹${budgets.reduce((a, b) => a + Number(b.spent), 0)}`,
-//               },
-//               {
-//                 label: "Remaining",
-//                 value: `₹${budgets.reduce(
-//                   (a, b) => a + (b.limit - b.spent),
-//                   0
-//                 )}`,
-//               },
-//             ].map((c, i) => (
-//               <div
-//                 key={i}
-//                 className="rounded-2xl p-6 bg-white border border-gray-200 shadow-lg hover:shadow-xl transition"
-//               >
-//                 <p className="text-sm text-gray-500">{c.label}</p>
-//                 <h2 className="text-2xl font-semibold mt-1 text-gray-900">
-//                   {c.value}
-//                 </h2>
+//           <main className="p-4 sm:p-6 lg:p-10">
+
+//             {/* HEADER */}
+//             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-10">
+
+//               <div>
+//                 <h1
+//                   className="text-4xl font-black text-transparent bg-clip-text"
+//                   style={{
+//                     backgroundImage:
+//                       "linear-gradient(90deg,#c084fc,#7c3aed,#60a5fa)",
+//                   }}
+//                 >
+//                   Budget Overview
+//                 </h1>
+
+//                 <p className="text-gray-400 mt-2">
+//                   Control spending with smart budget tracking
+//                 </p>
 //               </div>
-//             ))}
-//           </div>
 
-//           {/* SECTION TITLE */}
-//           <h2 className="text-xl font-semibold text-white mb-5">Your Budgets</h2>
+//               <button
+//                 onClick={() => setShowForm(true)}
+//                 className="
+//                   flex items-center gap-2
+//                   px-6 py-3 rounded-2xl
+//                   bg-gradient-to-r from-violet-600 to-blue-500
+//                   hover:scale-105 transition-all
+//                   shadow-[0_0_30px_rgba(139,92,246,0.35)]
+//                 "
+//               >
+//                 <Plus size={18} />
+//                 Add Budget
+//               </button>
+//             </div>
 
-//           {/* BUDGET LIST */}
-//           {budgets.length === 0 ? (
-//             <div className="text-center py-20 text-gray-400">No budgets yet.</div>
-//           ) : (
-//             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-7">
-//               {budgets.map((b) => {
-//                 const percentage = Math.min((b.spent / b.limit) * 100, 100);
-//                 const accent = accentForCategory(b.category);
+//             {/* SUMMARY CARDS */}
+
+//             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 mb-10">
+
+//               {[
+//                 {
+//                   title: "Total Budgets",
+//                   value: summary.totalBudgets,
+//                 },
+//                 {
+//                   title: "Budget Limit",
+//                   value: `₹${summary.totalLimit}`,
+//                 },
+//                 {
+//                   title: "Spent",
+//                   value: `₹${summary.totalSpent}`,
+//                 },
+//                 {
+//                   title: "Remaining",
+//                   value: `₹${summary.remaining}`,
+//                 },
+//               ].map((item, i) => (
+//                 <motion.div
+//                   whileHover={{ y: -5 }}
+//                   key={i}
+//                   className="
+//                     rounded-3xl p-6
+//                     border border-white/10
+//                     bg-white/[0.04]
+//                     backdrop-blur-xl
+//                   "
+//                 >
+//                   <p className="text-gray-400 text-sm">
+//                     {item.title}
+//                   </p>
+
+//                   <h2 className="text-3xl font-bold mt-3">
+//                     {item.value}
+//                   </h2>
+//                 </motion.div>
+//               ))}
+//             </div>
+
+//             {/* BUDGET GRID */}
+
+//             <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-7">
+
+//               {budgets.map((budget) => {
+//                 const percent =
+//                   budget.limit > 0
+//                     ? Math.min(
+//                         (budget.spent / budget.limit) * 100,
+//                         100
+//                       )
+//                     : 0;
+
+//                 const exceeded = budget.spent > budget.limit;
 
 //                 return (
-//                   <div
-//                     key={b._id}
-//                     className="relative p-6 rounded-2xl bg-white border border-gray-200 shadow-md hover:shadow-lg transition"
+//                   <motion.div
+//                     whileHover={{
+//                       y: -6,
+//                     }}
+//                     key={budget._id}
+//                     className="
+//                       relative overflow-hidden
+//                       rounded-[30px]
+//                       border border-white/10
+//                       bg-[#121826]
+//                       p-6
+//                       shadow-2xl
+//                     "
 //                   >
-//                     {/* Accent Bar */}
-//                     <div
-//                       className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl"
-//                       style={{ background: accent }}
-//                     />
 
-//                     {/* Top */}
-//                     <div className="flex justify-between items-start">
-//                       <div>
-//                         <p className="text-lg font-semibold text-gray-900 capitalize">
-//                           {b.category}
-//                         </p>
-//                         <p className="text-sm text-gray-500">{b.month}</p>
+//                     {/* TOP */}
+
+//                     <div className="flex items-start justify-between">
+
+//                       <div className="flex items-center gap-4">
+
+//                         <div
+//                           className="
+//                             w-14 h-14 rounded-2xl
+//                             flex items-center justify-center
+//                           "
+//                           style={{
+//                             background: `${categoryColor(
+//                               budget.category
+//                             )}20`,
+//                             color: categoryColor(
+//                               budget.category
+//                             ),
+//                           }}
+//                         >
+//                           {categoryIcon(budget.category)}
+//                         </div>
+
+//                         <div>
+//                           <h3 className="text-lg font-bold capitalize">
+//                             {budget.category}
+//                           </h3>
+
+//                           <p className="text-gray-400 text-sm">
+//                             {budget.month}
+//                           </p>
+//                         </div>
 //                       </div>
 
 //                       <button
-//                         onClick={() => deleteBudget(b._id)}
-//                         className="text-gray-400 hover:text-red-500 text-lg"
+//                         onClick={() =>
+//                           deleteBudget(budget._id)
+//                         }
+//                         className="
+//                           w-10 h-10 rounded-xl
+//                           bg-white/[0.05]
+//                           flex items-center justify-center
+//                         "
 //                       >
-//                         ✕
+//                         <MoreHorizontal size={18} />
 //                       </button>
 //                     </div>
 
-//                     {/* Spent / Limit */}
-//                     <p className="text-sm text-gray-700 mt-4">
-//                       Spent:{" "}
-//                       <span className="font-semibold text-gray-900">
-//                         ₹{b.spent}
-//                       </span>{" "}
-//                       / ₹{b.limit}
-//                     </p>
+//                     {/* CIRCLE */}
 
-//                     {/* Progress */}
-//                     <div className="w-full mt-4 h-3 rounded-full bg-gray-200 overflow-hidden">
-//                       <div
-//                         style={{
-//                           width: `${percentage}%`,
-//                           background:
-//                             b.spent > b.limit
-//                               ? "linear-gradient(90deg,#fb7185,#f97316)"
-//                               : accent,
-//                         }}
-//                         className="h-full transition-all duration-700"
+//                     <div className="w-40 h-40 mx-auto my-8">
+
+//                       <CircularProgressbar
+//                         value={percent}
+//                         text={`${Math.round(percent)}%`}
+//                         styles={buildStyles({
+//                           pathColor: exceeded
+//                             ? "#ef4444"
+//                             : categoryColor(
+//                                 budget.category
+//                               ),
+//                           textColor: "#fff",
+//                           trailColor: "#1e293b",
+//                         })}
 //                       />
+
 //                     </div>
-//                   </div>
+
+//                     {/* VALUES */}
+
+//                     <div className="space-y-4">
+
+//                       <div className="flex items-center justify-between">
+//                         <span className="text-gray-400">
+//                           Spent
+//                         </span>
+
+//                         <span className="font-semibold">
+//                           ₹{budget.spent}
+//                         </span>
+//                       </div>
+
+//                       <div className="flex items-center justify-between">
+//                         <span className="text-gray-400">
+//                           Budget
+//                         </span>
+
+//                         <span className="font-semibold">
+//                           ₹{budget.limit}
+//                         </span>
+//                       </div>
+
+//                       <div className="flex items-center justify-between">
+//                         <span className="text-gray-400">
+//                           Remaining
+//                         </span>
+
+//                         <span
+//                           className={`font-semibold ${
+//                             exceeded
+//                               ? "text-red-400"
+//                               : "text-emerald-400"
+//                           }`}
+//                         >
+//                           ₹{budget.limit - budget.spent}
+//                         </span>
+//                       </div>
+
+//                     </div>
+
+//                     {/* WARNING */}
+
+//                     {exceeded && (
+//                       <div
+//                         className="
+//                           mt-5 rounded-2xl
+//                           bg-red-500/10
+//                           border border-red-500/20
+//                           p-3 flex items-center gap-3
+//                         "
+//                       >
+//                         <AlertTriangle
+//                           size={18}
+//                           className="text-red-400"
+//                         />
+
+//                         <p className="text-sm text-red-300">
+//                           Budget exceeded
+//                         </p>
+//                       </div>
+//                     )}
+
+//                   </motion.div>
 //                 );
 //               })}
 //             </div>
-//           )}
 
-//           {/* ADD BUDGET MODAL */}
-//           {showForm && (
-//             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 backdrop-blur-sm">
-//               <div className="bg-white w-full max-w-md p-6 rounded-2xl shadow-xl border border-gray-200">
-//                 <h2 className="text-2xl font-semibold text-gray-900 mb-4">
-//                   Add Budget
-//                 </h2>
+//             {/* MODAL */}
 
-//                 <form onSubmit={addBudget} className="space-y-4">
-//                   <div>
-//                     <label className="text-gray-700 text-sm font-medium">
-//                       Month
-//                     </label>
+//             {showForm && (
+//               <div
+//                 className="
+//                   fixed inset-0 z-50
+//                   bg-black/60 backdrop-blur-sm
+//                   flex items-center justify-center
+//                   p-4
+//                 "
+//               >
+//                 <form
+//                   onSubmit={addBudget}
+//                   className="
+//                     w-full max-w-md
+//                     rounded-3xl
+//                     border border-white/10
+//                     bg-[#111827]
+//                     p-8
+//                   "
+//                 >
+
+//                   <h2 className="text-2xl font-bold mb-6">
+//                     Add Budget
+//                   </h2>
+
+//                   <div className="space-y-4">
+
 //                     <input
-//                       type="text"
+//                       required
+//                       placeholder="Month (Example: July 2026)"
 //                       value={form.month}
 //                       onChange={(e) =>
-//                         setForm({ ...form, month: e.target.value })
+//                         setForm({
+//                           ...form,
+//                           month: e.target.value,
+//                         })
 //                       }
-//                       placeholder="e.g. December"
-//                       className="w-full mt-1 p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-400"
-//                       required
+//                       className="
+//                         w-full rounded-2xl
+//                         bg-white/[0.05]
+//                         border border-white/10
+//                         p-4 outline-none
+//                       "
 //                     />
-//                   </div>
 
-//                   <div>
-//                     <label className="text-gray-700 text-sm font-medium">
-//                       Category
-//                     </label>
 //                     <input
-//                       type="text"
+//                       required
+//                       placeholder="Category"
 //                       value={form.category}
 //                       onChange={(e) =>
-//                         setForm({ ...form, category: e.target.value })
+//                         setForm({
+//                           ...form,
+//                           category: e.target.value,
+//                         })
 //                       }
-//                       placeholder="e.g. Food"
-//                       className="w-full mt-1 p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-400"
-//                       required
+//                       className="
+//                         w-full rounded-2xl
+//                         bg-white/[0.05]
+//                         border border-white/10
+//                         p-4 outline-none
+//                       "
 //                     />
-//                   </div>
 
-//                   <div>
-//                     <label className="text-gray-700 text-sm font-medium">
-//                       Limit (₹)
-//                     </label>
 //                     <input
+//                       required
 //                       type="number"
+//                       placeholder="Budget Limit"
 //                       value={form.limit}
 //                       onChange={(e) =>
-//                         setForm({ ...form, limit: e.target.value })
+//                         setForm({
+//                           ...form,
+//                           limit: e.target.value,
+//                         })
 //                       }
-//                       placeholder="5000"
-//                       className="w-full mt-1 p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-400"
-//                       required
+//                       className="
+//                         w-full rounded-2xl
+//                         bg-white/[0.05]
+//                         border border-white/10
+//                         p-4 outline-none
+//                       "
 //                     />
+
 //                   </div>
 
-//                   <div className="flex justify-end gap-3 pt-3">
+//                   <div className="flex gap-4 mt-8">
+
+//                     <button
+//                       type="submit"
+//                       className="
+//                         flex-1 py-4 rounded-2xl
+//                         bg-gradient-to-r
+//                         from-violet-600 to-blue-500
+//                         font-semibold
+//                       "
+//                     >
+//                       Add Budget
+//                     </button>
+
 //                     <button
 //                       type="button"
-//                       onClick={() => setShowForm(false)}
-//                       className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
+//                       onClick={() =>
+//                         setShowForm(false)
+//                       }
+//                       className="
+//                         flex-1 py-4 rounded-2xl
+//                         bg-white/[0.06]
+//                         border border-white/10
+//                       "
 //                     >
 //                       Cancel
 //                     </button>
 
-//                     <button
-//                       type="submit"
-//                       className="px-4 py-2 rounded-lg text-white"
-//                       style={{
-//                         background: "linear-gradient(90deg,#7c3aed,#60a5fa)",
-//                       }}
-//                     >
-//                       Add Budget
-//                     </button>
 //                   </div>
+
 //                 </form>
 //               </div>
-//             </div>
-//           )}
+//             )}
 
-//         </main>
-//       </div>
-//     </div>
-//   );
-// }
-
-
-// import { useState, useEffect, useRef } from "react";
-// import axios from "axios";
-// import Sidebar from "../components/Sidebar";
-// import Topbar from "../components/Topbar";
-// import { Toaster, toast } from "react-hot-toast";
-
-// export default function Budgets() {
-//   const [budgets, setBudgets] = useState([]);
-//   const [showForm, setShowForm] = useState(false);
-//   const [form, setForm] = useState({
-//     month: "",
-//     category: "",
-//     limit: "",
-//   });
-
-//   const shownExceedAlerts = useRef(new Set());
-
-//   const fetchBudgets = async () => {
-//     const user = JSON.parse(localStorage.getItem("user"));
-//     if (!user || !user._id) return;
-
-//     try {
-//       const res = await axios.get(
-//         `http://localhost:5000/api/budgets?userId=${user._id}`
-//       );
-
-//       setBudgets(res.data);
-
-//       const exceeded = res.data.filter((b) => b.spent > b.limit);
-//       exceeded.forEach((b) => {
-//         if (!shownExceedAlerts.current.has(b._id)) {
-//           toast.error(`⚠️ Budget exceeded in ${b.category}`, {
-//             style: { background: "#3b082f", color: "#ffdede", fontWeight: 700 },
-//           });
-//           shownExceedAlerts.current.add(b._id);
-//         }
-//       });
-//     } catch (err) {
-//       console.error("Error fetching budgets", err);
-//     }
-//   };
-
-//   useEffect(() => {
-//     fetchBudgets();
-//   }, []);
-
-//   const addBudget = async (e) => {
-//     e.preventDefault();
-//     const user = JSON.parse(localStorage.getItem("user"));
-//     if (!user || !user._id) {
-//       toast.error("Please log in before adding budgets.");
-//       return;
-//     }
-
-//     try {
-//       await axios.post("http://localhost:5000/api/budgets/add", {
-//         ...form,
-//         userId: user._id,
-//       });
-
-//       setForm({ month: "", category: "", limit: "" });
-//       setShowForm(false);
-//       fetchBudgets();
-//       toast.success("Budget added!");
-//     } catch (err) {
-//       console.error("Error adding budget:", err);
-//       toast.error("Failed to add budget");
-//     }
-//   };
-
-//   const deleteBudget = async (id) => {
-//     try {
-//       await axios.delete(`http://localhost:5000/api/budgets/${id}`);
-//       shownExceedAlerts.current.delete(id);
-//       fetchBudgets();
-//       toast("Budget deleted");
-//     } catch (err) {
-//       console.error("Error deleting budget:", err);
-//       toast.error("Failed to delete budget");
-//     }
-//   };
-
-//   const accentForCategory = (cat) => {
-//     if (!cat) return "linear-gradient(90deg,#5eead4,#60a5fa)";
-//     const c = cat.toLowerCase();
-//     if (c.includes("food")) return "linear-gradient(90deg,#ff8a80,#f48fb1)";
-//     if (c.includes("online") || c.includes("payment") || c.includes("card"))
-//       return "linear-gradient(90deg,#7c3aed,#60a5fa)";
-//     if (c.includes("rent") || c.includes("bills"))
-//       return "linear-gradient(90deg,#f59e0b,#f97316)";
-//     return "linear-gradient(90deg,#7c3aed,#60a5fa)";
-//   };
-
-//   return (
-//     <div className="flex min-h-screen w-full overflow-hidden bg-[#050611]">
-
-//       <Sidebar />
-
-//       <div
-//         className="flex-1 flex flex-col relative min-h-screen w-full overflow-y-auto"
-//         style={{
-//           background:
-//             "linear-gradient(180deg, #050611 0%, #0b0713 55%, #09041a 100%)",
-//         }}
-//       >
-//         <Topbar />
-//         <Toaster position="top-right" />
-
-//         <main className="relative z-10 p-10 pb-20 min-h-screen w-full">
-
-//           {/* Header */}
-//           <div className="flex items-start justify-between mb-10">
-//             <div>
-//               <h1
-//                 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text"
-//                 style={{
-//                   backgroundImage:
-//                     "linear-gradient(90deg,#b892ff,#7c3aed,#7dd3fc)",
-//                 }}
-//               >
-//                 Budgets
-//               </h1>
-//               <p className="text-gray-300 mt-3 max-w-xl">
-//                 Track limits & control your monthly spending — in dark galaxy mode ✨
-//               </p>
-//             </div>
-
-//             <button
-//               onClick={() => setShowForm(true)}
-//               className="px-5 py-2.5 rounded-full shadow-lg transform hover:scale-[1.03] transition text-white"
-//               style={{
-//                 background: "linear-gradient(90deg,#7c3aed,#60a5fa)",
-//                 boxShadow: "0 8px 30px rgba(124,58,237,0.18)",
-//               }}
-//             >
-//               + Add Budget
-//             </button>
-//           </div>
-
-//           {/* Summary */}
-//           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-//             {[
-//               { label: "Total Budgets", value: budgets.length },
-//               {
-//                 label: "Total Limit",
-//                 value: `₹${budgets.reduce((a, b) => a + Number(b.limit), 0)}`,
-//               },
-//               {
-//                 label: "Total Spent",
-//                 value: `₹${budgets.reduce((a, b) => a + Number(b.spent), 0)}`,
-//               },
-//               {
-//                 label: "Remaining",
-//                 value: `₹${budgets.reduce((a, b) => a + (b.limit - b.spent), 0)}`,
-//               },
-//             ].map((c, i) => (
-// <div
-//   className="rounded-2xl p-6"
-//   style={{
-//     background: "rgba(255,255,255,0.12)",
-//     border: "1px solid rgba(255,255,255,0.25)",
-//     boxShadow: "0 8px 25px rgba(0,0,0,0.35)",
-//     backdropFilter: "blur(12px)"
-//   }}
-// >
-
-//                 <p className="text-sm text-gray-300">{c.label}</p>
-//                 <h2 className="text-2xl font-semibold mt-1 text-white">{c.value}</h2>
-//               </div>
-//             ))}
-//           </div>
-
-//           {/* Budget List */}
-//           <h2 className="text-xl font-semibold text-white mb-5">Your Budgets</h2>
-
-//           {budgets.length === 0 ? (
-//             <div className="text-center py-20 text-gray-400">
-//               No budgets yet.
-//             </div>
-//           ) : (
-//             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-7">
-//               {budgets.map((b) => {
-//                 const percentage = Math.min((b.spent / b.limit) * 100, 100);
-//                 const accent = accentForCategory(b.category);
-
-//                 return (
-// <div
-//   key={b._id}
-//   className="relative p-6 rounded-2xl"
-//   style={{
-//     background: "rgba(255,255,255,0.14)",
-//     border: "1px solid rgba(255,255,255,0.3)",
-//     boxShadow: "0 10px 30px rgba(0,0,0,0.38)",
-//     backdropFilter: "blur(14px)"
-//   }}
-// >
-
-//                     <div
-//                       className="absolute left-0 top-0 h-full w-1"
-//                       style={{ background: accent }}
-//                     />
-
-//                     <div className="flex justify-between">
-//                       <div>
-//                         <p className="text-lg font-semibold text-white capitalize">
-//                           {b.category}
-//                         </p>
-//                         <p className="text-sm text-gray-300">{b.month}</p>
-//                       </div>
-//                       <button
-//                         onClick={() => deleteBudget(b._id)}
-//                         className="text-gray-300 hover:text-red-400 text-lg"
-//                       >
-//                         ✕
-//                       </button>
-//                     </div>
-
-//                     <p className="text-sm text-gray-300 mt-4">
-//                       Spent: <span className="text-white">₹{b.spent}</span> / ₹{b.limit}
-//                     </p>
-
-//                     <div className="w-full mt-4 h-3 rounded-full bg-gray-800 overflow-hidden">
-//                       <div
-//                         style={{
-//                           width: `${percentage}%`,
-//                           background:
-//                             b.spent > b.limit
-//                               ? "linear-gradient(90deg,#fb7185,#f97316)"
-//                               : accent,
-//                         }}
-//                         className="h-full transition-all duration-700"
-//                       />
-//                     </div>
-//                   </div>
-//                 );
-//               })}
-//             </div>
-//           )}
-//         </main>
-//       </div>
-//     </div>
-//   );
-// }
-
-
-
-// import { useState, useEffect, useRef } from "react";
-// import axios from "axios";
-// import Sidebar from "../components/Sidebar";
-// import Topbar from "../components/Topbar";
-// import { Toaster, toast } from "react-hot-toast";
-
-// export default function Budgets() {
-//   const [budgets, setBudgets] = useState([]);
-//   const [showForm, setShowForm] = useState(false);
-//   const [form, setForm] = useState({
-//     month: "",
-//     category: "",
-//     limit: "",
-//   });
-
-//   const shownExceedAlerts = useRef(new Set());
-
-//   const fetchBudgets = async () => {
-//     const user = JSON.parse(localStorage.getItem("user"));
-//     if (!user || !user._id) return;
-
-//     try {
-//       const res = await axios.get(
-//         `http://localhost:5000/api/budgets?userId=${user._id}`
-//       );
-
-//       setBudgets(res.data);
-
-//       const exceeded = res.data.filter((b) => b.spent > b.limit);
-//       exceeded.forEach((b) => {
-//         if (!shownExceedAlerts.current.has(b._id)) {
-//           toast.error(`⚠️ Budget exceeded in ${b.category}`, {
-//             style: { background: "#3b082f", color: "#ffdede", fontWeight: 700 },
-//           });
-//           shownExceedAlerts.current.add(b._id);
-//         }
-//       });
-//     } catch (err) {
-//       console.error("Error fetching budgets", err);
-//     }
-//   };
-
-//   useEffect(() => {
-//     fetchBudgets();
-//   }, []);
-
-//   const addBudget = async (e) => {
-//     e.preventDefault();
-//     const user = JSON.parse(localStorage.getItem("user"));
-//     if (!user || !user._id) {
-//       toast.error("Please log in before adding budgets.");
-//       return;
-//     }
-
-//     try {
-//       await axios.post("http://localhost:5000/api/budgets/add", {
-//         ...form,
-//         userId: user._id,
-//       });
-
-//       setForm({ month: "", category: "", limit: "" });
-//       setShowForm(false);
-//       fetchBudgets();
-//       toast.success("Budget added!");
-//     } catch (err) {
-//       console.error("Error adding budget:", err);
-//       toast.error("Failed to add budget");
-//     }
-//   };
-
-//   const deleteBudget = async (id) => {
-//     try {
-//       await axios.delete(`http://localhost:5000/api/budgets/${id}`);
-//       shownExceedAlerts.current.delete(id);
-//       fetchBudgets();
-//       toast("Budget deleted");
-//     } catch (err) {
-//       console.error("Error deleting budget:", err);
-//       toast.error("Failed to delete budget");
-//     }
-//   };
-
-//   const accentForCategory = (cat) => {
-//     if (!cat) return "linear-gradient(90deg,#5eead4,#60a5fa)";
-//     const c = cat.toLowerCase();
-//     if (c.includes("food")) return "linear-gradient(90deg,#ff8a80,#f48fb1)";
-//     if (c.includes("online") || c.includes("payment") || c.includes("card"))
-//       return "linear-gradient(90deg,#7c3aed,#60a5fa)";
-//     if (c.includes("rent") || c.includes("bills"))
-//       return "linear-gradient(90deg,#f59e0b,#f97316)";
-//     return "linear-gradient(90deg,#7c3aed,#60a5fa)";
-//   };
-
-//   return (
-//     <div className="flex h-screen w-full overflow-hidden">
-
-//       <Sidebar />
-
-//       <div className="flex-1 flex flex-col relative h-full overflow-y-auto w-full">
-
-//         <Topbar />
-//         <Toaster position="top-right" />
-
-//         {/* BACKGROUND */}
-//         <div className="absolute inset-0 -z-20">
-//           <div
-//             className="absolute inset-0"
-//             style={{
-//               background:
-//                 "radial-gradient(1200px 600px at 10% 10%, rgba(67,56,202,0.14), transparent 12%)," +
-//                 "radial-gradient(900px 500px at 85% 20%, rgba(220, 95, 255, 0.08), transparent 18%)," +
-//                 "linear-gradient(180deg, #050611 0%, #0b0713 60%, #09041a 100%)",
-//             }}
-//           />
-
-//           <div
-//             style={{ filter: "blur(60px)", opacity: 0.6 }}
-//             className="absolute -top-48 -right-48 w-[720px] h-[720px] rounded-full"
-//           >
-//             <div
-//               style={{
-//                 width: "100%",
-//                 height: "100%",
-//                 background:
-//                   "radial-gradient(circle at 25% 30%, rgba(124,58,237,0.26), rgba(124,58,237,0.08) 20%, rgba(0,0,0,0) 45%)," +
-//                   "radial-gradient(circle at 70% 60%, rgba(79,70,229,0.20), rgba(99,102,241,0.06) 25%, rgba(0,0,0,0) 50%)",
-//               }}
-//             />
-//           </div>
-
-//           <div
-//             style={{ filter: "blur(40px)", opacity: 0.45 }}
-//             className="absolute -bottom-40 -left-40 w-[560px] h-[560px] rounded-full"
-//           >
-//             <div
-//               style={{
-//                 width: "100%",
-//                 height: "100%",
-//                 background:
-//                   "radial-gradient(circle at 40% 40%, rgba(255,99,132,0.09), rgba(255,200,255,0.03) 20%, rgba(0,0,0,0) 60%)",
-//               }}
-//             />
-//           </div>
+//           </main>
 //         </div>
-
-//         {/* CONTENT FIXED */}
-//         <main className="relative z-10 p-10 h-full w-full">
-
-//           <div className="flex items-start justify-between mb-10">
-//             <div>
-//               <h1
-//                 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text"
-//                 style={{
-//                   backgroundImage:
-//                     "linear-gradient(90deg,#b892ff,#7c3aed,#7dd3fc)",
-//                 }}
-//               >
-//                 Budgets
-//               </h1>
-
-//               <p className="text-gray-300 mt-3 max-w-xl">
-//                 Track limits & control your monthly spending — in dark galaxy mode ✨
-//               </p>
-//             </div>
-
-//             <button
-//               onClick={() => setShowForm(true)}
-//               className="px-5 py-2.5 rounded-full shadow-lg transform hover:scale-[1.03] transition text-white"
-//               style={{
-//                 background: "linear-gradient(90deg,#7c3aed,#60a5fa)",
-//                 boxShadow: "0 8px 30px rgba(124,58,237,0.18)",
-//               }}
-//             >
-//               + Add Budget
-//             </button>
-//           </div>
-
-//           {/* Summary */}
-//           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-//             {[ 
-//               { label: "Total Budgets", value: budgets.length },
-//               {
-//                 label: "Total Limit",
-//                 value: `₹${budgets.reduce((a, b) => a + Number(b.limit), 0)}`,
-//               },
-//               {
-//                 label: "Total Spent",
-//                 value: `₹${budgets.reduce((a, b) => a + Number(b.spent), 0)}`,
-//               },
-//               {
-//                 label: "Remaining",
-//                 value: `₹${budgets.reduce((a, b) => a + (b.limit - b.spent), 0)}`,
-//               },
-//             ].map((c, i) => (
-//               <div
-//                 key={i}
-//                 className="rounded-2xl p-6"
-//                 style={{
-//                   background: "rgba(255,255,255,0.02)",
-//                   border: "1px solid rgba(255,255,255,0.04)",
-//                   boxShadow: "0 10px 30px rgba(2,6,23,0.5)",
-//                 }}
-//               >
-//                 <p className="text-sm text-gray-300">{c.label}</p>
-//                 <h2 className="text-2xl font-semibold mt-1 text-white">{c.value}</h2>
-//               </div>
-//             ))}
-//           </div>
-
-//           {/* List */}
-//           <h2 className="text-xl font-semibold text-white mb-5">Your Budgets</h2>
-
-//           {budgets.length === 0 ? (
-//             <div className="text-center py-20 text-gray-400">
-//               No budgets yet.
-//             </div>
-//           ) : (
-//             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-7">
-//               {budgets.map((b) => {
-//                 const percentage = Math.min((b.spent / b.limit) * 100, 100);
-//                 const accent = accentForCategory(b.category);
-
-//                 return (
-//                   <div
-//                     key={b._id}
-//                     className="relative p-6 rounded-2xl"
-//                     style={{
-//                       background: "rgba(255,255,255,0.02)",
-//                       border: "1px solid rgba(255,255,255,0.04)",
-//                       boxShadow: "0 12px 35px rgba(2,6,23,0.5)",
-//                     }}
-//                   >
-//                     <div
-//                       className="absolute left-0 top-0 h-full w-1"
-//                       style={{ background: accent }}
-//                     />
-
-//                     <div className="flex justify-between">
-//                       <div>
-//                         <p className="text-lg font-semibold text-white capitalize">
-//                           {b.category}
-//                         </p>
-//                         <p className="text-sm text-gray-300">{b.month}</p>
-//                       </div>
-//                       <button
-//                         onClick={() => deleteBudget(b._id)}
-//                         className="text-gray-300 hover:text-red-400 text-lg"
-//                       >
-//                         ✕
-//                       </button>
-//                     </div>
-
-//                     <p className="text-sm text-gray-300 mt-4">
-//                       Spent: <span className="text-white">₹{b.spent}</span> / ₹{b.limit}
-//                     </p>
-
-//                     <div className="w-full mt-4 h-3 rounded-full bg-gray-800 overflow-hidden">
-//                       <div
-//                         style={{
-//                           width: `${percentage}%`,
-//                           background: b.spent > b.limit
-//                             ? "linear-gradient(90deg,#fb7185,#f97316)"
-//                             : accent,
-//                         }}
-//                         className="h-full transition-all duration-700"
-//                       />
-//                     </div>
-//                   </div>
-//                 );
-//               })}
-//             </div>
-//           )}
-//         </main>
 //       </div>
 //     </div>
 //   );
 // }
+
+
+
+
+

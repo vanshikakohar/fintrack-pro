@@ -4,7 +4,6 @@ import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import axios from "../axios";
 import API from "../utils/api";
-import { motion } from "framer-motion";
 
 const fmt = (v) =>
   `₹${Number(v || 0).toLocaleString(undefined, {
@@ -23,38 +22,49 @@ export default function SplitwiseGroup() {
   const [amount, setAmount] = useState("");
   const [paidBy, setPaidBy] = useState("");
 
+  // LOAD DATA
   const loadData = async () => {
     setLoading(true);
+
     try {
       const res = await axios.get(
-  `${API}/split/groups/${groupId}/expenses`
-);
+        `${API}/split/groups/${groupId}/expenses`
+      );
+
       setGroup(res.data.group);
       setExpenses(res.data.expenses || []);
       setBalances(res.data.balances || {});
     } catch (err) {
       console.error(err);
-      alert("Unable to load group. See console.");
+      alert("Unable to load group");
     }
+
     setLoading(false);
   };
 
+  // ADD EXPENSE
   const addExpense = async () => {
-    if (!desc || !amount || !paidBy) return alert("Fill all fields");
+    if (!desc || !amount || !paidBy) {
+      return alert("Fill all fields");
+    }
 
     try {
-      await axios.post(`${API}/split/groups/${groupId}/expense`, {
-        groupId,
-        description: desc,
-        amount: Number(amount),
-        paidBy,
-      });
+      await axios.post(
+        `${API}/split/groups/${groupId}/expense`,
+        {
+          groupId,
+          description: desc,
+          amount: Number(amount),
+          paidBy,
+        }
+      );
 
       setDesc("");
       setAmount("");
       setPaidBy("");
 
       await loadData();
+
       alert("Expense added!");
     } catch (err) {
       console.error(err);
@@ -62,29 +72,63 @@ export default function SplitwiseGroup() {
     }
   };
 
+  // SETTLE UP
+  const settleUp = async (from, to, amount) => {
+    try {
+      await axios.post(`${API}/split/settlements`, {
+        from,
+        to,
+        amount,
+        group: groupId,
+      });
+
+      alert(`${from} settled ${fmt(amount)} with ${to}`);
+
+      await loadData();
+    } catch (err) {
+      console.error(err);
+      alert("Error settling");
+    }
+  };
+
   useEffect(() => {
     loadData();
   }, [groupId]);
 
+  // CALCULATE WHO OWES WHOM
   const settlements = useMemo(() => {
     const entries = Object.entries(balances);
+
     let debtors = [];
     let creditors = [];
 
     for (const [name, bal] of entries) {
-      if (bal < 0) debtors.push({ name, amount: Math.abs(bal) });
-      else if (bal > 0) creditors.push({ name, amount: bal });
+      if (bal < 0) {
+        debtors.push({
+          name,
+          amount: Math.abs(bal),
+        });
+      } else if (bal > 0) {
+        creditors.push({
+          name,
+          amount: bal,
+        });
+      }
     }
 
     const result = [];
-    let d = 0,
-      c = 0;
+
+    let d = 0;
+    let c = 0;
 
     while (d < debtors.length && c < creditors.length) {
       const debtor = debtors[d];
       const creditor = creditors[c];
 
-      const settleAmount = Math.min(debtor.amount, creditor.amount);
+      const settleAmount = Math.min(
+        debtor.amount,
+        creditor.amount
+      );
 
       result.push({
         from: debtor.name,
@@ -95,228 +139,223 @@ export default function SplitwiseGroup() {
       debtor.amount -= settleAmount;
       creditor.amount -= settleAmount;
 
-      if (debtor.amount === 0) d++;
-      if (creditor.amount === 0) c++;
+      if (debtor.amount < 1) d++;
+      if (creditor.amount < 1) c++;
     }
 
     return result;
   }, [balances]);
 
-  if (loading && !group) return <div className="p-6">Loading…</div>;
-  if (!group) return <div className="p-6">Group not found</div>;
+  if (loading && !group) {
+    return <div className="p-10">Loading...</div>;
+  }
+
+  if (!group) {
+    return <div className="p-10">Group not found</div>;
+  }
 
   return (
-    <div className="flex min-h-screen relative">
-
-      {/* BACKGROUND (same as Splitwise.jsx) */}
-      <div className="absolute inset-0 -z-30 overflow-hidden">
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "radial-gradient(1400px 800px at 20% 10%, rgba(67,56,202,0.12), transparent 14%)," +
-              "radial-gradient(900px 500px at 85% 10%, rgba(220,95,255,0.06), transparent 20%)," +
-              "linear-gradient(180deg,#03040a,#08030f,#060218)",
-          }}
-        />
-
-        <div
-          className="absolute -top-40 -right-40 w-[900px] h-[900px] rounded-full blur-3xl opacity-50"
-          style={{
-            background:
-              "radial-gradient(circle at 25% 25%, rgba(124,58,237,0.22), rgba(124,58,237,0.08) 30%, transparent 60%)",
-          }}
-        />
-
-        <div
-          className="absolute bottom-[-300px] left-[-300px] w-[700px] h-[700px] rounded-full blur-2xl opacity-40"
-          style={{
-            background:
-              "radial-gradient(circle at 40% 40%, rgba(255,99,132,0.07), rgba(255,200,255,0.03) 20%, transparent 60%)",
-          }}
-        />
-      </div>
-
+    <div className="flex min-h-screen bg-gray-100">
       <Sidebar />
 
-      <div className="flex-1 relative">
+      <div className="flex-1">
         <Topbar />
 
-        <main className="relative z-10 p-8 space-y-8 text-white">
+        <main className="p-8 space-y-6">
 
           {/* HEADER */}
-          <h1
-            className="text-3xl font-extrabold"
-            style={{
-              background: "linear-gradient(90deg,#b892ff,#7c3aed,#7dd3fc)",
-              WebkitBackgroundClip: "text",
-              color: "transparent",
-            }}
-          >
-            {group.name}
-          </h1>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">
+              {group.name}
+            </h1>
 
-          <p className="text-gray-400 mb-4">
-            {group.members?.length || 0} members
-          </p>
+            <p className="text-gray-500 mt-1">
+              {group.members?.length || 0} members
+            </p>
+          </div>
 
-          {/* GRID */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* TOP GRID */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-            {/* BALANCES CARD */}
-            <div
-              className="p-6 rounded-2xl shadow-xl"
-              style={{
-                background: "rgba(255,255,255,0.95)",
-                backdropFilter: "blur(12px)",
-                border: "1px solid rgba(255,255,255,0.1)",
-              }}
-            >
-              <h3 className="text-xl font-semibold text-black mb-3">Balances</h3>
-              <ul>
-                {Object.keys(balances).length === 0 ? (
-                  <li className="text-gray-500">No balances yet</li>
-                ) : (
-                  Object.entries(balances).map(([name, bal]) => (
-                    <li
-                      key={name}
-                      className="flex justify-between py-2 text-black"
+            {/* BALANCES */}
+            <div className="bg-white rounded-2xl shadow p-6">
+              <h2 className="text-xl font-semibold mb-4">
+                Balances
+              </h2>
+
+              <div className="space-y-3">
+                {Object.entries(balances).map(([name, bal]) => (
+                  <div
+                    key={name}
+                    className="flex justify-between items-center"
+                  >
+                    <div className="font-medium">{name}</div>
+
+                    <div
+                      className={`font-semibold ${
+                        bal >= 0
+                          ? "text-green-600"
+                          : "text-red-500"
+                      }`}
                     >
-                      <div className="font-medium">{name}</div>
-                      <div className={bal >= 0 ? "text-green-600" : "text-red-500"}>
-                        {fmt(bal)}
-                      </div>
-                    </li>
-                  ))
-                )}
-              </ul>
+                      {fmt(bal)}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            {/* ADD EXPENSE CARD */}
-            <div
-              className="md:col-span-2 p-6 rounded-2xl shadow-xl space-y-4 text-black"
-              style={{
-                background: "rgba(255,255,255,0.95)",
-                backdropFilter: "blur(12px)",
-                border: "1px solid rgba(255,255,255,0.1)",
-              }}
-            >
-              <h3 className="text-xl font-semibold">Add Expense</h3>
+            {/* ADD EXPENSE */}
+            <div className="lg:col-span-2 bg-white rounded-2xl shadow p-6">
+              <h2 className="text-xl font-semibold mb-4">
+                Add Expense
+              </h2>
 
-              <input
-                value={desc}
-                onChange={(e) => setDesc(e.target.value)}
-                placeholder="Description"
-                className="border p-3 rounded-xl w-full"
-              />
+              <div className="space-y-4">
 
-              <input
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="Amount"
-                type="number"
-                className="border p-3 rounded-xl w-full"
-              />
+                <input
+                  value={desc}
+                  onChange={(e) => setDesc(e.target.value)}
+                  placeholder="Description"
+                  className="w-full border rounded-xl p-3"
+                />
 
-              <select
-                value={paidBy}
-                onChange={(e) => setPaidBy(e.target.value)}
-                className="border p-3 rounded-xl w-full"
-              >
-                <option value="">Select payer</option>
-                {(group.members || []).map((m) => {
-                  const key = m._id || m.name;
-                  return (
-                    <option key={key} value={m.name}>
+                <input
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="Amount"
+                  type="number"
+                  className="w-full border rounded-xl p-3"
+                />
+
+                <select
+                  value={paidBy}
+                  onChange={(e) => setPaidBy(e.target.value)}
+                  className="w-full border rounded-xl p-3"
+                >
+                  <option value="">Select payer</option>
+
+                  {(group.members || []).map((m) => (
+                    <option
+                      key={m._id || m.name}
+                      value={m.name}
+                    >
                       {m.name}
                     </option>
-                  );
-                })}
-              </select>
+                  ))}
+                </select>
 
-              <div className="flex gap-2">
-                <button
-                  className="px-4 py-2 rounded-xl text-white"
-                  style={{
-                    background: "linear-gradient(90deg,#7c3aed,#4f46e5)",
-                  }}
-                  onClick={addExpense}
-                >
-                  Add Expense
-                </button>
+                <div className="flex gap-3">
+                  <button
+                    onClick={addExpense}
+                    className="bg-indigo-600 text-white px-5 py-2 rounded-xl"
+                  >
+                    Add Expense
+                  </button>
 
-                <button
-                  className="px-4 py-2 rounded-xl border"
-                  onClick={loadData}
-                >
-                  Refresh
-                </button>
+                  <button
+                    onClick={loadData}
+                    className="border px-5 py-2 rounded-xl"
+                  >
+                    Refresh
+                  </button>
+                </div>
               </div>
             </div>
           </div>
 
           {/* WHO OWES WHOM */}
-          <div
-            className="p-6 rounded-2xl shadow-xl text-black"
-            style={{
-              background: "rgba(255,255,255,0.95)",
-              backdropFilter: "blur(12px)",
-              border: "1px solid rgba(255,255,255,0.1)",
-            }}
-          >
-            <h3 className="text-xl font-semibold mb-3">Who Owes Whom</h3>
+          <div className="bg-white rounded-2xl shadow p-6">
+            <h2 className="text-xl font-semibold mb-4">
+              Who Owes Whom
+            </h2>
 
             {settlements.length === 0 ? (
-              <p className="text-gray-500">All settled up 🎉</p>
+              <p className="text-gray-500">
+                Everyone is settled 🎉
+              </p>
             ) : (
-              <ul className="space-y-2">
+              <div className="space-y-3">
                 {settlements.map((s, i) => (
-                  <li
+                  <div
                     key={i}
-                    className="flex justify-between border-b pb-2 text-black"
+                    className="flex items-center justify-between border-b pb-3"
                   >
-                    <span>
-                      <b>{s.from}</b> owes <b>{s.to}</b>
-                    </span>
-                    <span className="font-semibold text-blue-700">
-                      {fmt(s.amount)}
-                    </span>
-                  </li>
+                    <div>
+                      <span className="font-semibold">
+                        {s.from}
+                      </span>{" "}
+                      owes{" "}
+                      <span className="font-semibold">
+                        {s.to}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+
+                      <div className="font-bold text-blue-600">
+                        {fmt(s.amount)}
+                      </div>
+
+                      <button
+                        onClick={() =>
+                          settleUp(
+                            s.from,
+                            s.to,
+                            s.amount
+                          )
+                        }
+                        className="bg-green-600 text-white px-4 py-1 rounded-lg"
+                      >
+                        Settle
+                      </button>
+
+                    </div>
+                  </div>
                 ))}
-              </ul>
+              </div>
             )}
           </div>
 
           {/* RECENT EXPENSES */}
-          <div
-            className="p-6 rounded-2xl shadow-xl text-black"
-            style={{
-              background: "rgba(255,255,255,0.95)",
-              backdropFilter: "blur(12px)",
-              border: "1px solid rgba(255,255,255,0.1)",
-            }}
-          >
-            <h3 className="text-xl font-semibold mb-3">Recent Expenses</h3>
+          <div className="bg-white rounded-2xl shadow p-6">
+            <h2 className="text-xl font-semibold mb-4">
+              Recent Expenses
+            </h2>
 
             {expenses.length === 0 ? (
-              <p className="text-gray-500">No expenses yet</p>
+              <p className="text-gray-500">
+                No expenses yet
+              </p>
             ) : (
-              <ul className="divide-y">
-                {expenses.map((ex) => (
-                  <li key={ex._id} className="py-3 flex justify-between">
+              <div className="divide-y">
+                {expenses.map((e) => (
+                  <div
+                    key={e._id}
+                    className="py-4 flex justify-between items-center"
+                  >
                     <div>
-                      <div className="font-medium">{ex.description}</div>
-                      <div className="text-xs text-gray-500">
-                        {new Date(ex.date).toLocaleString()}
+                      <div className="font-medium">
+                        {e.description}
+                      </div>
+
+                      <div className="text-sm text-gray-500">
+                        Paid by {e.paidBy}
+                      </div>
+
+                      <div className="text-xs text-gray-400">
+                        {new Date(
+                          e.date
+                        ).toLocaleString()}
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-sm">Paid by {ex.paidBy}</div>
-                      <div className="font-semibold">{fmt(ex.amount)}</div>
+
+                    <div className="text-lg font-bold">
+                      {fmt(e.amount)}
                     </div>
-                  </li>
+                  </div>
                 ))}
-              </ul>
+              </div>
             )}
           </div>
 
@@ -325,6 +364,333 @@ export default function SplitwiseGroup() {
     </div>
   );
 }
+// import React, { useEffect, useState, useMemo } from "react";
+// import { useParams } from "react-router-dom";
+// import Sidebar from "../components/Sidebar";
+// import Topbar from "../components/Topbar";
+// import axios from "../axios";
+// import API from "../utils/api";
+// import { motion } from "framer-motion";
+
+// const fmt = (v) =>
+//   `₹${Number(v || 0).toLocaleString(undefined, {
+//     maximumFractionDigits: 0,
+//   })}`;
+
+// export default function SplitwiseGroup() {
+//   const { groupId } = useParams();
+
+//   const [group, setGroup] = useState(null);
+//   const [expenses, setExpenses] = useState([]);
+//   const [balances, setBalances] = useState({});
+//   const [loading, setLoading] = useState(false);
+
+//   const [desc, setDesc] = useState("");
+//   const [amount, setAmount] = useState("");
+//   const [paidBy, setPaidBy] = useState("");
+
+//   const loadData = async () => {
+//     setLoading(true);
+//     try {
+//       const res = await axios.get(
+//   `${API}/split/groups/${groupId}/expenses`
+// );
+//       setGroup(res.data.group);
+//       setExpenses(res.data.expenses || []);
+//       setBalances(res.data.balances || {});
+//     } catch (err) {
+//       console.error(err);
+//       alert("Unable to load group. See console.");
+//     }
+//     setLoading(false);
+//   };
+
+//   const addExpense = async () => {
+//     if (!desc || !amount || !paidBy) return alert("Fill all fields");
+
+//     try {
+//       await axios.post(`${API}/split/groups/${groupId}/expense`, {
+//         groupId,
+//         description: desc,
+//         amount: Number(amount),
+//         paidBy,
+//       });
+
+//       setDesc("");
+//       setAmount("");
+//       setPaidBy("");
+
+//       await loadData();
+//       alert("Expense added!");
+//     } catch (err) {
+//       console.error(err);
+//       alert("Error adding expense");
+//     }
+//   };
+
+//   useEffect(() => {
+//     loadData();
+//   }, [groupId]);
+
+//   const settlements = useMemo(() => {
+//     const entries = Object.entries(balances);
+//     let debtors = [];
+//     let creditors = [];
+
+//     for (const [name, bal] of entries) {
+//       if (bal < 0) debtors.push({ name, amount: Math.abs(bal) });
+//       else if (bal > 0) creditors.push({ name, amount: bal });
+//     }
+
+//     const result = [];
+//     let d = 0,
+//       c = 0;
+
+//     while (d < debtors.length && c < creditors.length) {
+//       const debtor = debtors[d];
+//       const creditor = creditors[c];
+
+//       const settleAmount = Math.min(debtor.amount, creditor.amount);
+
+//       result.push({
+//         from: debtor.name,
+//         to: creditor.name,
+//         amount: settleAmount,
+//       });
+
+//       debtor.amount -= settleAmount;
+//       creditor.amount -= settleAmount;
+
+//       if (debtor.amount === 0) d++;
+//       if (creditor.amount === 0) c++;
+//     }
+
+//     return result;
+//   }, [balances]);
+
+//   if (loading && !group) return <div className="p-6">Loading…</div>;
+//   if (!group) return <div className="p-6">Group not found</div>;
+
+//   return (
+//     <div className="flex min-h-screen relative">
+
+//       {/* BACKGROUND (same as Splitwise.jsx) */}
+//       <div className="absolute inset-0 -z-30 overflow-hidden">
+//         <div
+//           className="absolute inset-0"
+//           style={{
+//             background:
+//               "radial-gradient(1400px 800px at 20% 10%, rgba(67,56,202,0.12), transparent 14%)," +
+//               "radial-gradient(900px 500px at 85% 10%, rgba(220,95,255,0.06), transparent 20%)," +
+//               "linear-gradient(180deg,#03040a,#08030f,#060218)",
+//           }}
+//         />
+
+//         <div
+//           className="absolute -top-40 -right-40 w-[900px] h-[900px] rounded-full blur-3xl opacity-50"
+//           style={{
+//             background:
+//               "radial-gradient(circle at 25% 25%, rgba(124,58,237,0.22), rgba(124,58,237,0.08) 30%, transparent 60%)",
+//           }}
+//         />
+
+//         <div
+//           className="absolute bottom-[-300px] left-[-300px] w-[700px] h-[700px] rounded-full blur-2xl opacity-40"
+//           style={{
+//             background:
+//               "radial-gradient(circle at 40% 40%, rgba(255,99,132,0.07), rgba(255,200,255,0.03) 20%, transparent 60%)",
+//           }}
+//         />
+//       </div>
+
+//       <Sidebar />
+
+//       <div className="flex-1 relative">
+//         <Topbar />
+
+//         <main className="relative z-10 p-8 space-y-8 text-white">
+
+//           {/* HEADER */}
+//           <h1
+//             className="text-3xl font-extrabold"
+//             style={{
+//               background: "linear-gradient(90deg,#b892ff,#7c3aed,#7dd3fc)",
+//               WebkitBackgroundClip: "text",
+//               color: "transparent",
+//             }}
+//           >
+//             {group.name}
+//           </h1>
+
+//           <p className="text-gray-400 mb-4">
+//             {group.members?.length || 0} members
+//           </p>
+
+//           {/* GRID */}
+//           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+//             {/* BALANCES CARD */}
+//             <div
+//               className="p-6 rounded-2xl shadow-xl"
+//               style={{
+//                 background: "rgba(255,255,255,0.95)",
+//                 backdropFilter: "blur(12px)",
+//                 border: "1px solid rgba(255,255,255,0.1)",
+//               }}
+//             >
+//               <h3 className="text-xl font-semibold text-black mb-3">Balances</h3>
+//               <ul>
+//                 {Object.keys(balances).length === 0 ? (
+//                   <li className="text-gray-500">No balances yet</li>
+//                 ) : (
+//                   Object.entries(balances).map(([name, bal]) => (
+//                     <li
+//                       key={name}
+//                       className="flex justify-between py-2 text-black"
+//                     >
+//                       <div className="font-medium">{name}</div>
+//                       <div className={bal >= 0 ? "text-green-600" : "text-red-500"}>
+//                         {fmt(bal)}
+//                       </div>
+//                     </li>
+//                   ))
+//                 )}
+//               </ul>
+//             </div>
+
+//             {/* ADD EXPENSE CARD */}
+//             <div
+//               className="md:col-span-2 p-6 rounded-2xl shadow-xl space-y-4 text-black"
+//               style={{
+//                 background: "rgba(255,255,255,0.95)",
+//                 backdropFilter: "blur(12px)",
+//                 border: "1px solid rgba(255,255,255,0.1)",
+//               }}
+//             >
+//               <h3 className="text-xl font-semibold">Add Expense</h3>
+
+//               <input
+//                 value={desc}
+//                 onChange={(e) => setDesc(e.target.value)}
+//                 placeholder="Description"
+//                 className="border p-3 rounded-xl w-full"
+//               />
+
+//               <input
+//                 value={amount}
+//                 onChange={(e) => setAmount(e.target.value)}
+//                 placeholder="Amount"
+//                 type="number"
+//                 className="border p-3 rounded-xl w-full"
+//               />
+
+//               <select
+//                 value={paidBy}
+//                 onChange={(e) => setPaidBy(e.target.value)}
+//                 className="border p-3 rounded-xl w-full"
+//               >
+//                 <option value="">Select payer</option>
+//                 {(group.members || []).map((m) => {
+//                   const key = m._id || m.name;
+//                   return (
+//                     <option key={key} value={m.name}>
+//                       {m.name}
+//                     </option>
+//                   );
+//                 })}
+//               </select>
+
+//               <div className="flex gap-2">
+//                 <button
+//                   className="px-4 py-2 rounded-xl text-white"
+//                   style={{
+//                     background: "linear-gradient(90deg,#7c3aed,#4f46e5)",
+//                   }}
+//                   onClick={addExpense}
+//                 >
+//                   Add Expense
+//                 </button>
+
+//                 <button
+//                   className="px-4 py-2 rounded-xl border"
+//                   onClick={loadData}
+//                 >
+//                   Refresh
+//                 </button>
+//               </div>
+//             </div>
+//           </div>
+
+//           {/* WHO OWES WHOM */}
+//           <div
+//             className="p-6 rounded-2xl shadow-xl text-black"
+//             style={{
+//               background: "rgba(255,255,255,0.95)",
+//               backdropFilter: "blur(12px)",
+//               border: "1px solid rgba(255,255,255,0.1)",
+//             }}
+//           >
+//             <h3 className="text-xl font-semibold mb-3">Who Owes Whom</h3>
+
+//             {settlements.length === 0 ? (
+//               <p className="text-gray-500">All settled up 🎉</p>
+//             ) : (
+//               <ul className="space-y-2">
+//                 {settlements.map((s, i) => (
+//                   <li
+//                     key={i}
+//                     className="flex justify-between border-b pb-2 text-black"
+//                   >
+//                     <span>
+//                       <b>{s.from}</b> owes <b>{s.to}</b>
+//                     </span>
+//                     <span className="font-semibold text-blue-700">
+//                       {fmt(s.amount)}
+//                     </span>
+//                   </li>
+//                 ))}
+//               </ul>
+//             )}
+//           </div>
+
+//           {/* RECENT EXPENSES */}
+//           <div
+//             className="p-6 rounded-2xl shadow-xl text-black"
+//             style={{
+//               background: "rgba(255,255,255,0.95)",
+//               backdropFilter: "blur(12px)",
+//               border: "1px solid rgba(255,255,255,0.1)",
+//             }}
+//           >
+//             <h3 className="text-xl font-semibold mb-3">Recent Expenses</h3>
+
+//             {expenses.length === 0 ? (
+//               <p className="text-gray-500">No expenses yet</p>
+//             ) : (
+//               <ul className="divide-y">
+//                 {expenses.map((ex) => (
+//                   <li key={ex._id} className="py-3 flex justify-between">
+//                     <div>
+//                       <div className="font-medium">{ex.description}</div>
+//                       <div className="text-xs text-gray-500">
+//                         {new Date(ex.date).toLocaleString()}
+//                       </div>
+//                     </div>
+//                     <div className="text-right">
+//                       <div className="text-sm">Paid by {ex.paidBy}</div>
+//                       <div className="font-semibold">{fmt(ex.amount)}</div>
+//                     </div>
+//                   </li>
+//                 ))}
+//               </ul>
+//             )}
+//           </div>
+
+//         </main>
+//       </div>
+//     </div>
+//   );
+// }
 
 
 

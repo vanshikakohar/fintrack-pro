@@ -7,31 +7,38 @@ import Transaction from "../models/Transaction.js";
 export const getBudgets = async (req, res) => {
   try {
     const { userId } = req.query;
+
     if (!userId) {
-      return res.status(400).json({ message: "userId is required" });
+      return res.status(400).json({
+        message: "userId is required",
+      });
     }
 
-    // 1️⃣ Get all budgets for user
-    const budgets = await Budget.find({ userId }).sort({ createdAt: -1 });
+    // GET USER BUDGETS
+    const budgets = await Budget.find({ userId }).sort({
+      createdAt: -1,
+    });
 
     const results = [];
 
     for (const budget of budgets) {
-      // 2️⃣ Parse "December 2026"
+      // Example: "July 2026"
       const [monthName, year] = budget.month.split(" ");
+
       if (!monthName || !year) continue;
 
+      // MONTH RANGE
       const start = new Date(`${monthName} 1, ${year}`);
+
       const end = new Date(start);
       end.setMonth(end.getMonth() + 1);
 
-      // 3️⃣ Aggregate expense transactions
+      // CALCULATE SPENT
       const spentAgg = await Transaction.aggregate([
         {
           $match: {
             userId: budget.userId,
             type: "expense",
-            category: budget.category.toLowerCase(),
 
             date: {
               $gte: start,
@@ -39,17 +46,40 @@ export const getBudgets = async (req, res) => {
             },
           },
         },
+
+        // convert transaction category to lowercase
+        {
+          $addFields: {
+            normalizedCategory: {
+              $toLower: "$category",
+            },
+          },
+        },
+
+        // compare lowercase categories
+        {
+          $match: {
+            normalizedCategory:
+              budget.category.toLowerCase(),
+          },
+        },
+
         {
           $group: {
             _id: null,
-            total: { $sum: "$amount" },
+            total: {
+              $sum: "$amount",
+            },
           },
         },
       ]);
 
-      const spent = spentAgg.length > 0 ? spentAgg[0].total : 0;
+      const spent =
+        spentAgg.length > 0
+          ? spentAgg[0].total
+          : 0;
 
-      // 4️⃣ Attach spent dynamically
+      // FINAL OBJECT
       results.push({
         _id: budget._id,
         userId: budget.userId,
@@ -63,9 +93,16 @@ export const getBudgets = async (req, res) => {
     }
 
     res.json(results);
+
   } catch (err) {
-    console.error("❌ Error fetching budgets:", err);
-    res.status(500).json({ message: "Error fetching budgets" });
+    console.error(
+      "❌ Error fetching budgets:",
+      err
+    );
+
+    res.status(500).json({
+      message: "Error fetching budgets",
+    });
   }
 };
 
@@ -74,24 +111,48 @@ export const getBudgets = async (req, res) => {
 =========================== */
 export const addBudget = async (req, res) => {
   try {
-    const { userId, category, limit, month } = req.body;
+    const {
+      userId,
+      category,
+      limit,
+      month,
+    } = req.body;
 
-    if (!userId || !category || !limit || !month) {
-      return res.status(400).json({ message: "Missing required fields" });
+    if (
+      !userId ||
+      !category ||
+      !limit ||
+      !month
+    ) {
+      return res.status(400).json({
+        message: "Missing required fields",
+      });
     }
 
     const budget = new Budget({
       userId,
+
+      // SAVE LOWERCASE
       category: category.toLowerCase(),
+
       limit: Number(limit),
+
       month,
     });
 
     await budget.save();
+
     res.status(201).json(budget);
+
   } catch (err) {
-    console.error("❌ Error adding budget:", err);
-    res.status(500).json({ message: "Error adding budget" });
+    console.error(
+      "❌ Error adding budget:",
+      err
+    );
+
+    res.status(500).json({
+      message: "Error adding budget",
+    });
   }
 };
 
@@ -100,13 +161,134 @@ export const addBudget = async (req, res) => {
 =========================== */
 export const deleteBudget = async (req, res) => {
   try {
-    await Budget.findByIdAndDelete(req.params.id);
-    res.json({ message: "Budget deleted" });
+    await Budget.findByIdAndDelete(
+      req.params.id
+    );
+
+    res.json({
+      message: "Budget deleted",
+    });
+
   } catch (err) {
-    console.error("❌ Error deleting budget:", err);
-    res.status(500).json({ message: "Error deleting budget" });
+    console.error(
+      "❌ Error deleting budget:",
+      err
+    );
+
+    res.status(500).json({
+      message: "Error deleting budget",
+    });
   }
 };
+// import Budget from "../models/Budget.js";
+// import Transaction from "../models/Transaction.js";
+
+// /* ===========================
+//    GET BUDGETS (WITH SPENT)
+// =========================== */
+// export const getBudgets = async (req, res) => {
+//   try {
+//     const { userId } = req.query;
+//     if (!userId) {
+//       return res.status(400).json({ message: "userId is required" });
+//     }
+
+//     // 1️⃣ Get all budgets for user
+//     const budgets = await Budget.find({ userId }).sort({ createdAt: -1 });
+
+//     const results = [];
+
+//     for (const budget of budgets) {
+//       // 2️⃣ Parse "December 2026"
+//       const [monthName, year] = budget.month.split(" ");
+//       if (!monthName || !year) continue;
+
+//       const start = new Date(`${monthName} 1, ${year}`);
+//       const end = new Date(start);
+//       end.setMonth(end.getMonth() + 1);
+
+//       // 3️⃣ Aggregate expense transactions
+//       const spentAgg = await Transaction.aggregate([
+//         {
+//           $match: {
+//             userId: budget.userId,
+//             type: "expense",
+//             category: budget.category.toLowerCase(),
+
+//             date: {
+//               $gte: start,
+//               $lt: end,
+//             },
+//           },
+//         },
+//         {
+//           $group: {
+//             _id: null,
+//             total: { $sum: "$amount" },
+//           },
+//         },
+//       ]);
+
+//       const spent = spentAgg.length > 0 ? spentAgg[0].total : 0;
+
+//       // 4️⃣ Attach spent dynamically
+//       results.push({
+//         _id: budget._id,
+//         userId: budget.userId,
+//         category: budget.category,
+//         month: budget.month,
+//         limit: budget.limit,
+//         spent,
+//         createdAt: budget.createdAt,
+//         updatedAt: budget.updatedAt,
+//       });
+//     }
+
+//     res.json(results);
+//   } catch (err) {
+//     console.error("❌ Error fetching budgets:", err);
+//     res.status(500).json({ message: "Error fetching budgets" });
+//   }
+// };
+
+// /* ===========================
+//    ADD BUDGET
+// =========================== */
+// export const addBudget = async (req, res) => {
+//   try {
+//     const { userId, category, limit, month } = req.body;
+
+//     if (!userId || !category || !limit || !month) {
+//       return res.status(400).json({ message: "Missing required fields" });
+//     }
+
+//     const budget = new Budget({
+//       userId,
+//       category: category.toLowerCase(),
+//       limit: Number(limit),
+//       month,
+//     });
+
+//     await budget.save();
+//     res.status(201).json(budget);
+//   } catch (err) {
+//     console.error("❌ Error adding budget:", err);
+//     res.status(500).json({ message: "Error adding budget" });
+//   }
+// };
+
+// /* ===========================
+//    DELETE BUDGET
+// =========================== */
+// export const deleteBudget = async (req, res) => {
+//   try {
+//     await Budget.findByIdAndDelete(req.params.id);
+//     res.json({ message: "Budget deleted" });
+//   } catch (err) {
+//     console.error("❌ Error deleting budget:", err);
+//     res.status(500).json({ message: "Error deleting budget" });
+//   }
+// };
 
 
 

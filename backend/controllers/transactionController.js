@@ -1,4 +1,7 @@
+
+
 import Transaction from "../models/Transaction.js";
+import Account from "../models/Account.js";
 
 /**
  * ============================
@@ -7,26 +10,110 @@ import Transaction from "../models/Transaction.js";
  */
 export const addTransaction = async (req, res) => {
   try {
-    const { userId, type, amount, category, description, date } = req.body;
-
-    // 🔒 Validation
-    if (!userId || !type || !amount || !category) {
-      return res.status(400).json({ message: "Missing required fields" });
-    }
-
-    // ✅ Save transaction ONLY (NO budget update here)
-    const transaction = await Transaction.create({
+    const {
       userId,
+      accountId,
       type,
-      amount: Number(amount),
-      category: category.toLowerCase(), // 🔥 IMPORTANT
+      amount,
+      category,
       description,
       date,
-    });
+    } = req.body;
+
+    // VALIDATION
+    if (
+      !userId ||
+      !type ||
+      !amount ||
+      !category
+    ) {
+      return res.status(400).json({
+        message: "Missing required fields",
+      });
+    }
+
+    const numericAmount = Number(amount);
+
+    // ============================
+    // UPDATE ACCOUNT BALANCE
+    // ============================
+
+    if (
+      accountId &&
+      accountId !== "null" &&
+      accountId !== ""
+    ) {
+      const account =
+        await Account.findById(accountId);
+
+      if (!account) {
+        return res.status(404).json({
+          message: "Account not found",
+        });
+      }
+
+      // EXPENSE
+     // ============================
+// UPDATE ACCOUNT
+// ============================
+
+// EXPENSE
+if (type === "expense") {
+  account.balance =
+    Number(account.balance || 0) -
+    numericAmount;
+
+  account.expense =
+    Number(account.expense || 0) +
+    numericAmount;
+}
+
+// INCOME
+else if (type === "income") {
+  account.balance =
+    Number(account.balance || 0) +
+    numericAmount;
+
+  account.income =
+    Number(account.income || 0) +
+    numericAmount;
+}
+
+// TRANSACTION COUNT
+account.transactionsCount =
+  Number(account.transactionsCount || 0) + 1;
+
+await account.save();
+    }
+
+    // ============================
+    // CREATE TRANSACTION
+    // ============================
+
+    const transaction =
+      await Transaction.create({
+        userId,
+        accountId:
+          accountId &&
+          accountId !== "null" &&
+          accountId !== ""
+            ? accountId
+            : null,
+        type,
+        amount: numericAmount,
+        category: category.toLowerCase(),
+        description,
+        date,
+      });
 
     res.status(201).json(transaction);
+
   } catch (err) {
-    console.error("❌ Error adding transaction:", err);
+    console.error(
+      "ADD TRANSACTION ERROR:",
+      err
+    );
+
     res.status(500).json({
       message: "Error adding transaction",
       error: err.message,
@@ -36,27 +123,37 @@ export const addTransaction = async (req, res) => {
 
 /**
  * ============================
- * GET ALL TRANSACTIONS
+ * GET TRANSACTIONS
  * ============================
  */
-export const getTransactions = async (req, res) => {
+export const getTransactions = async (
+  req,
+  res
+) => {
   try {
     const { userId } = req.query;
 
     if (!userId) {
-      return res.status(400).json({ message: "userId is required" });
+      return res.status(400).json({
+        message: "userId required",
+      });
     }
 
-    const transactions = await Transaction.find({ userId }).sort({
-      date: -1,
-    });
+    const transactions =
+      await Transaction.find({
+        userId,
+      })
+        .populate("accountId")
+        .sort({ date: -1 });
 
     res.json(transactions);
+
   } catch (err) {
-    console.error("❌ Error fetching transactions:", err);
+    console.error(err);
+
     res.status(500).json({
-      message: "Error fetching transactions",
-      error: err.message,
+      message:
+        "Error fetching transactions",
     });
   }
 };
@@ -66,31 +163,229 @@ export const getTransactions = async (req, res) => {
  * DELETE TRANSACTION
  * ============================
  */
-export const deleteTransaction = async (req, res) => {
+export const deleteTransaction = async (
+  req,
+  res
+) => {
   try {
     const { id } = req.params;
 
-    const tx = await Transaction.findById(id);
-    if (!tx) {
-      return res.status(404).json({ message: "Transaction not found" });
+    const transaction =
+      await Transaction.findById(id);
+
+    if (!transaction) {
+      return res.status(404).json({
+        message:
+          "Transaction not found",
+      });
     }
 
-    // ✅ Just delete transaction (NO budget logic)
-    await Transaction.findByIdAndDelete(id);
+    // ✅ REVERSE ACCOUNT BALANCE
+    if (transaction.accountId) {
+      const account =
+        await Account.findById(
+          transaction.accountId
+        );
 
-    res.json({ message: "Transaction deleted successfully" });
+      if (account) {
+       if (
+  transaction.type ===
+  "expense"
+) {
+  account.balance +=
+    transaction.amount;
+
+  account.expense =
+    Number(account.expense || 0) -
+    transaction.amount;
+
+} else {
+  account.balance -=
+    transaction.amount;
+
+  account.income =
+    Number(account.income || 0) -
+    transaction.amount;
+}
+
+// REDUCE TRANSACTION COUNT
+account.transactionsCount =
+  Math.max(
+    Number(account.transactionsCount || 1) - 1,
+    0
+  );
+
+await account.save();
+      }
+    }
+
+    await Transaction.findByIdAndDelete(
+      id
+    );
+
+    res.json({
+      message:
+        "Transaction deleted successfully",
+    });
+
   } catch (err) {
-    console.error("❌ Error deleting transaction:", err);
+    console.error(err);
+
     res.status(500).json({
-      message: "Error deleting transaction",
-      error: err.message,
+      message:
+        "Error deleting transaction",
     });
   }
 };
 
+// import Transaction from "../models/Transaction.js";
+// import Account from "../models/Account.js";
 
+// /**
+//  * ============================
+//  * ADD TRANSACTION
+//  * ============================
+//  */
+// export const addTransaction = async (req, res) => {
+//   try {
+//     const {
+//       userId,
+//       accountId,
+//       type,
+//       amount,
+//       category,
+//       description,
+//       date,
+//     } = req.body;
 
+//     if (!userId || !type || !amount || !category) {
+//       return res.status(400).json({
+//         message: "Missing required fields",
+//       });
+//     }
 
+//     // CREATE TRANSACTION
+//     const transaction = await Transaction.create({
+//       userId,
+//       accountId,
+//       type,
+//       amount: Number(amount),
+//       category: category.toLowerCase(),
+//       description,
+//       date,
+//     });
+
+//     // AUTO UPDATE ACCOUNT BALANCE
+//     if (accountId) {
+//       const account = await Account.findById(accountId);
+
+//       if (account) {
+//         if (type === "income") {
+//           account.balance += Number(amount);
+//         } else {
+//           account.balance -= Number(amount);
+//         }
+
+//         await account.save();
+//       }
+//     }
+
+//     res.status(201).json(transaction);
+
+//   } catch (err) {
+//     console.error("❌ Error adding transaction:", err);
+
+//     res.status(500).json({
+//       message: "Error adding transaction",
+//       error: err.message,
+//     });
+//   }
+// };
+
+// /**
+//  * ============================
+//  * GET ALL TRANSACTIONS
+//  * ============================
+//  */
+// export const getTransactions = async (req, res) => {
+//   try {
+//     const { userId } = req.query;
+
+//     if (!userId) {
+//       return res.status(400).json({
+//         message: "userId is required",
+//       });
+//     }
+
+//     const transactions = await Transaction.find({
+//       userId,
+//     })
+//       .populate("accountId")
+//       .sort({
+//         date: -1,
+//       });
+
+//     res.json(transactions);
+
+//   } catch (err) {
+//     console.error("❌ Error fetching transactions:", err);
+
+//     res.status(500).json({
+//       message: "Error fetching transactions",
+//       error: err.message,
+//     });
+//   }
+// };
+
+// /**
+//  * ============================
+//  * DELETE TRANSACTION
+//  * ============================
+//  */
+// export const deleteTransaction = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+
+//     const tx = await Transaction.findById(id);
+
+//     if (!tx) {
+//       return res.status(404).json({
+//         message: "Transaction not found",
+//       });
+//     }
+
+//     // RETURN MONEY BACK TO ACCOUNT
+//     if (tx.accountId) {
+//       const account = await Account.findById(
+//         tx.accountId
+//       );
+
+//       if (account) {
+//         if (tx.type === "income") {
+//           account.balance -= Number(tx.amount);
+//         } else {
+//           account.balance += Number(tx.amount);
+//         }
+
+//         await account.save();
+//       }
+//     }
+
+//     await Transaction.findByIdAndDelete(id);
+
+//     res.json({
+//       message: "Transaction deleted successfully",
+//     });
+
+//   } catch (err) {
+//     console.error("❌ Error deleting transaction:", err);
+
+//     res.status(500).json({
+//       message: "Error deleting transaction",
+//       error: err.message,
+//     });
+//   }
+// };
 
 
 

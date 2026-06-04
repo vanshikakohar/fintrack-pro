@@ -9,7 +9,6 @@ import Analytics from "./pages/Analytics";
 import Documents from "./pages/Documents";
 import Landing from "./pages/Landing";
 import Accounts from "./pages/Accounts";
-import FinanceAI from "./pages/FinanceAI";
 import Profile from "./pages/Profile";
 import Splitwise from "./pages/Splitwise";
 import SplitwiseGroup from "./pages/SplitwiseGroup";
@@ -31,7 +30,7 @@ function App() {
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/documents" element={<Documents />} />
         <Route path="/accounts" element={<Accounts />} />
-        <Route path="/ai" element={<FinanceAI />} />
+
         <Route path="/profile" element={<Profile />} />
 
         <Route path="/splitwise" element={<Splitwise />} />

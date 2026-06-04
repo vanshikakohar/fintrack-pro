@@ -1,3 +1,65 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+  background: #050816;
+  overflow-x: hidden;
+  font-family: Inter, sans-serif;
+}
+
+body {
+  background:
+    radial-gradient(circle at top left, rgba(124,58,237,0.22), transparent 30%),
+    radial-gradient(circle at bottom right, rgba(59,130,246,0.18), transparent 30%),
+    #050816;
+  color: white;
+}
+
+/* PREMIUM SCROLLBAR */
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #090b1a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(#7c3aed, #3b82f6);
+  border-radius: 999px;
+}
+
+/* GLASS EFFECT */
+
+.glass {
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(18px);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.glow {
+  box-shadow:
+    0 0 20px rgba(124,58,237,0.35),
+    0 0 60px rgba(59,130,246,0.15);
+}
+
+::selection {
+  background: rgba(139,92,246,0.35);
+}
